@@ -1,0 +1,35 @@
+---
+output:
+  md_document:
+    variant: markdown_github
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "README-"
+)
+```
+
+# cmdsddfeitc
+
+The packagae `cmdsddfeitc` is a research compendium of the research project Cognitive Mechanisms of the Defer-Speedup and Date-Delay Framing Effects in Intertemporal Choice by Bram Zandbelt and Roshan Cools and was run at the Donders Institute, Radboud University / Radboucumc, Nijmegen, the Netherlands. This research project was funded through European Union’s Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant agreement No. 703141.
+    This research compendium is associated with a number of online objects, including the preregistration (https://osf.io/rzqh9/), data management plan (https://doi.org/10.6084/m9.figshare.4720978), cognitive task (https://github.com/bramzandbelt/itch_time_framing_task), and computational model (https://github.com/bramzandbelt/itchmodel).
+
+
+<!-- ## Example -->
+
+<!-- This is a basic example which shows you how to solve a common problem: -->
+
+<!-- ```{r example} -->
+<!-- ## basic example code -->
+<!-- ``` -->
+
+# Organization
+
+The following directory tree shows how the research compendium is organized:
+
+<!-- TODO: Add tree -->
