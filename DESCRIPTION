@@ -1,0 +1,15 @@
+Package: cmdsddfeitc
+Type: Package
+Title: Cognitive Mechanisms of the Defer-Speedup and Date-Delay Framing Effects in Intertemporal Choice
+Version: 0.1.0
+Author: Bram Zandbelt <bramzandbelt@gmail.com>
+Maintainer: Bram Zandbelt <bramzandbelt@gmail.com>
+Description: The package is a research compendium of the research project Cognitive Mechanisms of the Defer-Speedup and Date-Delay Framing Effects in Intertemporal Choice by Bram Zandbelt and Roshan Cools. This research project was funded through European Union’s Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant agreement No. 703141.
+    This research compendium is associated with a number of online objects, including the preregistration (https://osf.io/rzqh9/), data management plan (https://doi.org/10.6084/m9.figshare.4720978), cognitive task (https://github.com/bramzandbelt/itch_time_framing_task), and computational model (https://github.com/bramzandbelt/itchmodel).
+License: CC-BY 4.0 (code) and Donders Institute Data Usage Agreement (data)
+Encoding: UTF-8
+LazyData: true
+Imports: dplyr,
+    tidyr,
+    ggplot2,
+    knitr
