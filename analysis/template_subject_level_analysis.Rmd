@@ -1,0 +1,33 @@
+---
+params:
+  title: ""
+  participant_id: 1
+title: "`r params$title`"
+author: "Bram Zandbelt"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+params:
+  participant_id: 
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    df_print: paged
+    theme: readable
+    highlight: pygments
+    bibliography: "cmdsddfeitc.bib"
+    biblio-style: author-year
+---
+
+# Overview
+
+# Preliminaries
+
+# Read data
+
+# Preprocess data
+
+# Analyze data
+
+# Visualize data
+
+# Write data
