@@ -9,9 +9,18 @@ Description: The package is a research compendium of the research project Cognit
 License: CC-BY 4.0 (code) and Donders Institute Data Usage Agreement (data)
 Encoding: UTF-8
 LazyData: true
-Imports: dplyr,
-    tidyr,
+Imports:
+    dplyr,
+    DEoptim,
+    DEoptimR,
     ggplot2,
+    itchmodel,
     knitr,
-    magrittr
+    magrittr,
+    readr,
+    rprojroot,
+    stringr,
+    tibble,
+    tidyr
+Remotes: bramzandbelt/itchmodel
 RoxygenNote: 6.1.0
