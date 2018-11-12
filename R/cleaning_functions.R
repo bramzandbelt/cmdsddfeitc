@@ -22,10 +22,10 @@ get_col_types <- function(file_type){
                                            include_na = TRUE),
                        parameterization =
                          readr::col_factor(levels = c("one_condition",
-                                                      "defer_speedup_time_scaling",
-                                                      "defer_speedup_time_scaling_t0",
-                                                      "defer_speedup_value_scaling",
-                                                      "defer_speedup_value_scaling_t0"),
+                                                      "time_scaling",
+                                                      "time_scaling_t0",
+                                                      "value_scaling",
+                                                      "value_scaling_t0"),
                                            include_na = TRUE),
                        bound_settings =
                          readr::col_factor(levels = c("standard",
@@ -48,10 +48,10 @@ get_col_types <- function(file_type){
                                            include_na = TRUE),
                        parameterization =
                          readr::col_factor(levels = c("one_condition",
-                                                      "date_delay_time_scaling",
-                                                      "date_delay_time_scaling_t0",
-                                                      "date_delay_value_scaling",
-                                                      "date_delay_value_scaling_t0"),
+                                                      "time_scaling",
+                                                      "time_scaling_t0",
+                                                      "value_scaling",
+                                                      "value_scaling_t0"),
                                            include_na = TRUE),
                        bound_settings =
                          readr::col_factor(levels = c("standard",
