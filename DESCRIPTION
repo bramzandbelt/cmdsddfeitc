@@ -12,4 +12,6 @@ LazyData: true
 Imports: dplyr,
     tidyr,
     ggplot2,
-    knitr
+    knitr,
+    magrittr
+RoxygenNote: 6.1.0
