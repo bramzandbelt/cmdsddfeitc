@@ -1,0 +1,248 @@
+---
+params:
+  title: "02_exploratory_data_analysis"
+  participant_id: 1
+title: '`r stringr::str_c(stringr::str_to_title(params$title), " - participant ", params$participant_id)`'
+author: "Bram Zandbelt"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    df_print: paged
+    code_folding: hide
+    theme: readable
+    highlight: pygments
+    bibliography: "cmdsddfeitc.bib"
+    biblio-style: author-year
+---
+
+```{r setup, include=FALSE}
+# Set root dir to project directory to ensure that code is always run relative to the project directory, no matter if it is run using `knitr` or interactively.
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+
+# Attach tideverse package to enable access to pipe (%>%)
+require(tidyverse)
+```
+
+# Overview
+
+
+# Preliminaries
+
+Before reading the data the following is specified:
+
+```{r Define notebook name, based on YAML header}
+notebook_name <- 
+   stringr::str_to_lower(stringr::str_replace_all(params$title, " ", "_"))
+```
+- the _name of the notebook (`notebook_name`)_, which is used to save output to a notebook-specific directory
+
+```{r Define relevant directories for reading and writing data and create whenever needed}
+# Raw trial log files are read from here
+preprocessed_data_dir <- 
+  file.path("data","derivatives", "01_preprocessing", "included")
+
+# Derivatives will be written here
+eda_dir <- 
+  file.path("data","derivatives", notebook_name)
+
+# Create non-existing dirs if they don't exist
+cmdsddfeitc::check_dir(all_dirs = c(preprocessed_data_dir, eda_dir))
+
+```
+- all _relevant directories_ for reading and writing data
+
+```{r File name and task version}
+# Determine which file should be read
+expt_standard_trials_filename <- list.files(path = preprocessed_data_dir, 
+                                            pattern = sprintf("^experiment_standard_trials_.*%.3d.csv$",
+                                                              params$participant_id[[1]])
+                                            )
+
+# Determine task version, because factor levels (e.g. framing, trial_type) are task-dependent
+task_version <- ifelse(stringr::str_detect(expt_standard_trials_filename, "defer_speedup"),
+                    "defer_speedup",
+                    ifelse(stringr::str_detect(expt_standard_trials_filename, "date_delay"),
+                           "date_delay",
+                           NA
+                           )
+                    )
+```
+- the _filename of the trial log file (`trial_log_filename`)_ and _task version (`task_version`)_
+
+# Read data
+
+Having specified all relevant variables, the cleaned standard trials from the experiment are read:
+```{r Read trial_log data, warning=FALSE}
+# Read (and print) the data, using task-dependent column specifications
+(expt_trials <-
+    readr::read_csv(file = file.path(preprocessed_data_dir, expt_standard_trials_filename),
+                    col_types = cmdsddfeitc::get_col_types(stringr::str_c("expt_standard_trials_",
+                                                                          task_version)))
+  )
+```
+
+# Preprocess data
+```{r Choice proportions}
+choice_props <- 
+  expt_trials %>%
+  dplyr::mutate(t_l = factor(t_l, levels = c(2,4,8,16,32,64,128))) %>%
+  dplyr::group_by(frame, t_l, m_s_cat) %>%
+  dplyr::summarize(p_ll = sum(choice == "ll") / n(),
+                   m_s = median(m_s))
+
+```
+
+```{r}
+choice_pctgs <- 
+  expt_trials %>%
+  dplyr::group_by(frame, choice) %>%
+  dplyr::summarize (n = n()) %>%
+  dplyr::mutate(percentage = n / sum(n))
+
+choice_pctgs
+
+```
+
+Response time data
+```{r}
+rt_data <- 
+  expt_trials %>%
+  dplyr::mutate(t_l = factor(t_l, levels = c(2,4,8,16,32,64,128)),
+                m_s_cat = factor(m_s_cat, 
+                                 levels = c("below_ip", "at_ip", "above_ip"),
+                                 labels = c("-", "at", "+"))
+                )
+```
+
+
+# Analyze data
+
+
+# Visualize data
+
+Visualize how choice percentages vary between frames
+
+```{r Plot distribution of choices between frames, out.width="100%"}
+ggplot2::ggplot(choice_pctgs,
+                ggplot2::aes(x = frame,
+                             y = percentage,
+                             fill = choice)) + 
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::geom_text(ggplot2::aes(label = paste0(round(100*percentage),"%")),
+                     position = position_stack((vjust = 0.5)),
+                     color = "white") +
+  ggplot2::scale_x_discrete(name = "Frame") + 
+  ggplot2::scale_y_continuous(name = "Cumulative choice proportion") + 
+  ggplot2::scale_fill_manual(values = c("red", "navy")) + 
+  ggplot2::ggtitle("Distribution of choices between frames") +
+  ggplot2::coord_flip() + 
+  ggplot2::theme_minimal() + 
+  ggplot2::theme(panel.grid = ggplot2::element_blank())
+```
+
+Visualize how choice proportions vary between SS amount, delays (colors), and frames (panels)
+
+Choice proportions across amounts, delays, and frames
+```{r Plot probability of choosing LL option as a function of SS offer across delays and frames, out.width="100%"}
+ggplot2::ggplot(data = choice_props,
+                ggplot2::aes(x = m_s,
+                             y = p_ll,
+                             group = t_l,
+                             color = t_l)
+                ) +
+  ggplot2::facet_wrap("frame", ncol = 1) + 
+  ggplot2::geom_point(shape = 21,
+                      stroke = 1) + 
+  ggplot2::scale_color_viridis_d(name = "Delay (days)") + 
+  # ggplot2::scale_color_brewer(name = "Delay (days)",
+  #                             palette = "Set2") + 
+  ggplot2::scale_x_continuous(name = "Smaller-sooner amount (€)",
+                              limits = c(0, 43.52)) +
+  ggplot2::scale_y_continuous(name = "Probability of choosing larger-later option",
+                              limits = c(0, 1)) +
+  
+  ggplot2::ggtitle("P(LL choice | SS amount, delay, frame)") +
+  ggplot2::theme_minimal() + 
+  ggplot2::theme(panel.grid = ggplot2::element_blank(),
+                 panel.background = ggplot2::element_rect(fill = "gray95",color = NA),
+                 aspect.ratio = 1/1.61)
+```
+
+Visualize how response times vary between frames, delays (columns), and SS amount categories (rows)
+
+```{r Plot response times as a function of frame, delay, and SS amount category, out.width="100%"}
+ggplot2::ggplot(rt_data,
+                ggplot2::aes(x = frame,
+                             y = rt,
+                             color = choice)) +
+  ggplot2::facet_grid(m_s_cat ~ t_l) + 
+  ggplot2::geom_hline(yintercept = 1.5, linetype = "dashed") +
+  ggplot2::geom_hline(yintercept = 10, linetype = "dashed") +
+  ggplot2::geom_point(shape = 21,
+                      stroke = 1) +
+  ggplot2::scale_x_discrete(name = "Frame") +
+  ggplot2::scale_y_continuous(name = "Response time (s)",
+                              breaks = c(2, 5, 8),
+                              limits = c(0,10)) +
+  ggplot2::scale_color_discrete(name = "Choice") +
+  ggplot2::ggtitle("RT across frames, delays, SS amount") +
+  ggplot2::coord_flip() +
+  
+  cmdsddfeitc::theme_cmfsddfeitc() + 
+  ggplot2::theme(legend.position = "bottom")
+  
+
+```
+
+# Write data
+
+Choice proportions
+```{r Write choice proportion data to disk}
+# Add relevant variables, so that these files can be read and combined into a larger data frame for additional analysis
+choice_props <- 
+  choice_props %>%
+  dplyr::mutate(participant_id = params$participant_id) %>%
+  dplyr::select(participant_id, dplyr::everything())
+
+# Make file name human- and machine-readable, so that main results can be read from file name
+choice_props_file <- 
+  file.path(eda_dir,
+            sprintf("choice_proportions_task-%s_pid-%.3d.csv",
+                    task_version,
+                    params$participant_id # pid
+                    )
+            )
+
+readr::write_csv(choice_props,
+                 path = choice_props_file
+            )
+print(sprintf("%s", choice_props_file))
+```
+
+Choice percentages
+```{r Write choice percentage data to disk}
+# Add relevant variables, so that these files can be read and combined into a larger data frame for additional analysis
+choice_pctgs <- 
+  choice_pctgs %>%
+  dplyr::mutate(participant_id = params$participant_id) %>%
+  dplyr::select(participant_id, dplyr::everything())
+
+# Make file name human- and machine-readable, so that main results can be read from file name
+choice_pctgs_file <-
+  file.path(eda_dir,
+            sprintf("choice_percentages_task-%s_pid-%.3d.csv",
+                    task_version,
+                    params$participant_id # pid
+                    )
+            )
+  
+readr::write_csv(choice_pctgs,
+                 path = choice_pctgs_file
+            )
+print(sprintf("%s", choice_pctgs_file))
+```
+
+
+Note: The RT data will not be written to disk, because they would be identical to the `expt_trials` read from disk in this notebook.

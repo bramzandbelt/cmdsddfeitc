@@ -1,0 +1,468 @@
+---
+params:
+  title: "01_preprocessing"
+  participant_id: 1
+title: '`r stringr::str_c(stringr::str_to_title(params$title), " - participant ", params$participant_id)`'
+author: "Bram Zandbelt"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    df_print: paged
+    code_folding: hide
+    theme: readable
+    highlight: pygments
+    bibliography: "cmdsddfeitc.bib"
+    biblio-style: author-year
+---
+
+```{r setup, include=FALSE}
+# Set root dir to project directory to ensure that code is always run relative to the project directory, no matter if it is run using `knitr` or interactively.
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+
+# Attach tideverse package to enable access to pipe (%>%)
+require(tidyverse)
+```
+
+# Overview
+
+This notebook performs __cleaning__ and __quality assessment__ of an individual participant's data. It takes as input a participant's raw trial log file and produces as output an overview of the task performance criteria that are met and unmet, a visualization of the indifference points estimated from the calibration task, and multiple csv files written to disk containing cleaned data from different subsets of trials.
+
+# Preliminaries
+
+Before reading the data the following is specified:
+
+```{r Define notebook name, based on YAML header}
+notebook_name <- 
+   stringr::str_to_lower(stringr::str_replace_all(params$title, " ", "_"))
+```
+- the _name of the notebook (`notebook_name`)_, which is used to save output to a notebook-specific directory
+
+```{r Define relevant directories for reading and writing data and create whenever needed}
+# Raw trial log files are read from here
+raw_data_dir <- 
+  file.path("data","raw")
+
+# Cleaned data will be written here
+preproc_data_dir <- 
+  file.path("data","derivatives", notebook_name)
+preproc_incl_data_dir <- 
+  file.path(preproc_data_dir, "included")
+preproc_excl_data_dir <- 
+  file.path(preproc_data_dir, "excluded")
+
+# Create non-existing dirs if they don't exist
+cmdsddfeitc::check_dir(all_dirs = c(raw_data_dir, 
+                                    preproc_data_dir, 
+                                    preproc_incl_data_dir, 
+                                    preproc_excl_data_dir))
+```
+- all _relevant directories_ for reading and writing data
+
+```{r File name and task version}
+# Determine which file should be read
+trial_log_filename <- list.files(path = raw_data_dir, 
+                                 pattern = sprintf("trial_log.*%.3d.csv", params$participant_id[[1]])
+                                 )
+
+# Determine task version, because factor levels (e.g. framing, trial_type) are task-dependent
+task_version <- ifelse(stringr::str_detect(trial_log_filename, "defer_speedup"),
+                    "defer_speedup",
+                    ifelse(stringr::str_detect(trial_log_filename, "date_delay"),
+                           "date_delay",
+                           NA
+                           )
+                    )
+```
+- the _filename of the trial log file (`trial_log_filename`)_ and _task version (`task_version`)_
+
+```{r Specify preset task performance criteria}
+crit <- list()
+
+## Trial numbers
+crit$n_trial$practice = 10
+crit$n_trial$calibration$defer_speedup = 70 # 7 delays * (7 standard + 3 control trials)
+crit$n_trial$calibration$date_delay = 63 # 7 delays * (7 standard + 2 control trials)
+crit$n_trial$experiment$defer_speedup = 276 # 3 blocks of 92 trials
+crit$n_trial$experiment$date_delay = 184 # 2 blocks of 92 trials
+
+## Minimum accuracy on control trials
+crit$min_accuracy_control = 0.75
+
+## Maximum proportion of fast responses (RT < 1500 ms)
+crit$max_proportion_too_fast_rt = 0.25
+
+## Maximum proportion of omission errors (no response recorded)
+crit$max_proportion_omission_error = 0.25
+```
+- the preset _task performance criteria (`crit`)_ (see preregistration document, [https://osf.io/cmdp2/](https://osf.io/cmdp2/)) that are used to benchmark performance:
+  - number of trials for each stage should be:
+    - practice: `r crit$n_trial$practice`
+    - calibration: a multiple of `r crit$n_trial$calibration[task_version]`
+    - experiment: `r crit$n_trial$experiment[task_version]`
+  - minimum accuracy on control trials: `r crit$min_accuracy_control`
+  - maximum proportion of fast responses (RT < 1500 ms): `r crit$max_proportion_too_fast_rt`
+  - maximum proportion of omission_errors (RT > 10000 ms): `r crit$max_proportion_omission_error`
+
+# Read data
+
+Having specified all relevant variables, the raw trial log is read:
+```{r Read trial_log data, warning=FALSE}
+# Read (and print) the data, using task-dependent column specifications
+(raw_data <-
+    readr::read_csv(file = file.path(raw_data_dir, trial_log_filename),
+                    col_types = cmdsddfeitc::get_col_types(stringr::str_c("trial_log_data_", task_version)))
+  )
+```
+
+
+
+# Preprocess data
+
+## Data cleaning 
+
+Data cleaning encompasses the following steps for the following reasons:
+
+1. correct erroneous coding of variable names ending with `_ix` (e.g. `block_ix`, `iter_ix`) from double to integer
+2. add a factor variable `stage_id` to enable grouping and computing of quality assessment and summary statistics separately for practice, calibration, and experiment stages;
+3. add a logical variable `omission_error` to ease quality assessment
+4. rename the variable `framing` to `frame`, as it is used in the `itchmodel` package
+
+
+```{r Add stage_id variable}
+all_trials_cleaned <- 
+  raw_data %>%
+  # Code integers as integers
+  dplyr::mutate_at(vars(dplyr::ends_with("ix")), 
+                  as.integer) %>%
+  # Add variable stage_id
+  dplyr::mutate(stage_id =
+                  dplyr::case_when(stringr::str_detect(raw_data$block_id, "^p") 
+                                   ~ "practice",
+                                   stringr::str_detect(raw_data$block_id, "^i") 
+                                   ~ "calibration",
+                                   stringr::str_detect(raw_data$block_id, "^e") 
+                                   ~ "experiment"
+                                   )
+                ) %>%
+  dplyr::mutate(stage_id = factor(stage_id, 
+                                  levels = c("practice", 
+                                             "calibration",
+                                             "experiment"), 
+                                  ordered = TRUE)) %>%
+  # Add variable omission_error
+  dplyr::mutate(omission_error = is.infinite(rt)) %>%
+  dplyr::rename(frame = framing)
+```
+
+## Data selection
+
+```{r Identify relevant columns for assessing the data from the calibration and experiment task}
+# First identify relevant columns for assessing the data from the calibration and experiment task
+rel_cols <- c("subject_ix", # participant index
+              "stage_id", # practice, calibration (ip procedure), experiment
+              "block_id", # (p)ractice, (i)p procedure, (e)xperiment
+              "block_ix", # block index
+              "iter_ix",  # iteration index
+              "frame",    # time frame used
+              "m_s",      # amount of smaller-sooner option
+              "m_s_cat",  # category: below, at, or above IP
+              "m_l",      # amount of larger-later option
+              "t_s",      # delay to the smaller-sooner option
+              "t_l",      # delay to the larger-later option
+              "trial_type", # standard, catch, or instruction manipulation check
+              "choice",  # smaller-sooner (SS) or larger-later (LL) option
+              "response", # upper (LL) or lower (SS) bound
+              "rt",      # response time
+              "trial_correct", # whether or not response was correct
+              "too_fast",  # whether or not response was fast
+              "omission_error" # whether or not a response is lacking
+              )
+
+# Smaller-sooner amount category (m_s_cat, with levels below, at, and above IP) does not exist at the calibration stage
+rel_cols_clbr <- rel_cols[!(rel_cols %in% c("m_s_cat", "response"))]
+
+# The iteration index is only used in the calibration task (to count how often participants have to repeat the task in order to comply with performance criteria)
+rel_cols_expt <- rel_cols[rel_cols %in% c("subject_ix", "frame", "m_s_cat", "m_s", "m_l", "t_s", "t_l", "choice", "response", "rt")]
+```
+
+Data selection involves taking the cleaned data (`all_trials_cleaned`) to define three additional subsets for the following purposes:
+
+1. standard trials from the calibration task (`clbr_trials_standard`) will be used to visualize estimated indifference points and written   to disk for further (exploratory) analysis
+```{r # Standard trials from calibration task}
+# Standard trials from the calibration task will be written to disk for further analysis
+(clbr_trials_standard <- 
+    all_trials_cleaned %>%
+    dplyr::filter(stage_id == "calibration") %>%
+    # Only the last block needed: performance did not meet criteria in earlier blocks
+    dplyr::filter(iter_ix == max(unique(iter_ix))) %>%
+    dplyr::select(rel_cols_clbr) %>%
+    dplyr::filter(trial_type %in% "standard"))
+```
+
+2. standard trials from the experiment task (`expt_trials_standard`) will be written to disk for modeling analysis  
+```{r Standard trials from experiment task}
+# Standard trials from the experiment will be written to disk for further analysis
+(expt_trials_standard <- 
+   all_trials_cleaned %>%
+   dplyr::filter(stage_id == "experiment",
+                 trial_type %in% "standard",
+                 too_fast == FALSE,
+                 omission_error == FALSE
+                 ) %>%
+   dplyr::mutate(response = ifelse(choice == "ll",
+                                  "upper",
+                                  ifelse(choice == "ss",
+                                         "lower",
+                                         NA)
+                                  )
+                 ) %>%
+   dplyr::select(rel_cols_expt)
+ )
+```  
+
+3. control trials from both the calibration task and the experiment task (`control_trials`)
+```{r # Control trials from the calibration task and experiment task}
+# Control trials will be used for assessing whether participants paid attention
+(control_trials <- 
+    all_trials_cleaned %>%
+    dplyr::filter(!trial_type %in% "standard"))
+```    
+
+
+## Identify calibration task indifference points
+
+Indifference points in the calibration task are defined as the smaller-sooner amount (`m_s`) on the last standard trial of each delay.
+```{r Identify calibration task indifference points}
+(calibration_indifference_points <- 
+  clbr_trials_standard %>%
+  # We're interested in catch trials and instruction manipulation check trials
+  dplyr::select(subject_ix, t_l, m_s) %>%
+  # Last trial is approximate indifference point
+  dplyr::group_by(subject_ix, t_l) %>%
+  dplyr::summarize(ip = dplyr::last(m_s)) %>%
+  dplyr::mutate(relative_diff = c(NA, diff(ip))/ 43.52,
+                relative_diff_crit_met = (relative_diff < 0.2 | is.na(relative_diff)),
+                last_ip_within_bounds = c(rep(TRUE,6),
+                                          dplyr::last(ip) > 8 * 0.17 &
+                                          dplyr::last(ip) < 43.52 - 8 * 0.17),
+                monotonic_decrease = relative_diff_crit_met & last_ip_within_bounds))
+```
+
+# Analyze data
+
+We benchmark the following performance criteria:
+
+- __number of trials (`n_trial`)__ in each stage: to verify that all required data is collected (e.g. if participant fails to meet performance criteria in the calibration task three times, no further experimental data is collected);
+- __accuracy on control trials (`accuracy_control`)__ in the calibration and experiment stage: to verify that participants paid attention to the choice options and trial instruction;
+- __proportion of trials with fast (< 1500 ms) responses (`proportion_too_fast_rt`)__ in the calibration and experiment stage: to verify that participants consider each scenario carefully;
+- __proportion of trials with omission errors (`proportion_omission_error`)__ in the calibration and experiment stage: to verify that participants response within the 10000 ms response deadline.
+
+```{r Benchmark task performance}
+
+# Benchmark trial numbers
+trial_numbers <- 
+  all_trials_cleaned %>%
+  dplyr::group_by(stage_id) %>%
+  dplyr::summarize(criterion = "n_trial",
+                   value = n()) %>%
+  tidyr::complete(stage_id, fill = list(criterion = "n_trial", value = 0)) %>%
+  dplyr::mutate(criterion_met = 
+                  dplyr::case_when((.$stage_id == "practice" & 
+                                      .$value == 10) 
+                                   ~ TRUE,
+                                   (.$stage_id == "practice" & 
+                                      .$value != 10) 
+                                   ~ FALSE,
+                                   (.$stage_id == "calibration" & 
+                                      .$value %% crit$n_trial$calibration[[task_version]] == 0)
+                                   ~ TRUE,
+                                   (.$stage_id == "calibration" & 
+                                      .$value %% crit$n_trial$calibration[[task_version]] != 0)
+                                   ~ FALSE,
+                                   (.$stage_id == "experiment" & 
+                                      .$value == crit$n_trial$experiment[[task_version]])
+                                   ~ TRUE,
+                                   (.$stage_id == "experiment" & 
+                                      .$value != crit$n_trial$experiment[[task_version]])
+                                   ~ FALSE
+                                   )
+                )
+
+# Benchmark control trial accuracy
+accuracy_control_trials <- 
+  control_trials %>%
+  dplyr::group_by(stage_id) %>%
+  dplyr::summarize(criterion = "accuracy_control",
+                   value = sum(trial_correct) / n()) %>%
+  dplyr::mutate(criterion_met = 
+                  ifelse(value >= crit$min_accuracy_control,
+                         TRUE,
+                         FALSE)
+                  )
+
+# Benchmark proportion of fast responses
+proportion_too_fast_rt <- 
+  all_trials_cleaned %>%
+  dplyr::filter(stage_id %in% c("calibration", "experiment"),
+                trial_type == "standard") %>%
+  dplyr::group_by(stage_id) %>%
+  dplyr::summarize(n = n(),
+                   n_too_fast = sum(too_fast == TRUE),
+                   criterion = "proportion_too_fast",
+                   value = n_too_fast / n) %>%
+  dplyr::select(-n, -n_too_fast) %>%
+  dplyr::mutate(criterion_met = 
+                  ifelse(value <= crit$max_proportion_too_fast_rt,
+                         TRUE,
+                         FALSE)
+                  )
+
+# Benchmark proportion of omission errors
+proportion_omission_error <- 
+  all_trials_cleaned %>%
+  dplyr::filter(stage_id %in% c("calibration", "experiment"),
+                trial_type == "standard") %>%
+  dplyr::group_by(stage_id) %>%
+  dplyr::summarize(n = n(),
+                   n_omission_error = sum(omission_error == TRUE),
+                   criterion = "proportion_omission_error",
+                   value = n_omission_error / n) %>%
+  dplyr::select(-n, -n_omission_error) %>%
+  dplyr::mutate(criterion_met = 
+                  ifelse(value <= crit$max_proportion_omission_error,
+                         TRUE,
+                         FALSE)
+                  )
+
+# Show all benchmarks
+(all_benchmarks <- 
+dplyr::bind_rows(trial_numbers,
+                 accuracy_control_trials,
+                 proportion_too_fast_rt,
+                 proportion_omission_error
+                 ))
+
+# Determine if all criteria were met
+all_criterion_met <- all(all_benchmarks$criterion_met)
+
+if (all_criterion_met) {
+    print("All criteria were met: participant INCLUDED for further analysis")
+  } else {
+    print("Not all criteria were met: participant EXCLUDED for further analysis")
+  }
+```
+
+# Visualize data
+
+Visualize the calibration task indifference points
+
+```{r Visualize the calibration task indifference points, out.height="100%"}
+title_str <- ifelse(all(calibration_indifference_points$monotonic_decrease),
+                    "Indifference points decrease monotonically with delay",
+                    expression(paste("Indifference points ", bold("do not"), " decrease monotonically with delay"))
+                    )
+
+if (all(calibration_indifference_points$monotonic_decrease)) {
+  color_vals <- c("black", "red") # Two values must be provided, but only first will be used
+} else {
+  color_vals <- c("red", "black")
+}
+
+ggplot2::ggplot(calibration_indifference_points,
+                ggplot2::aes(x = t_l,
+                             y = ip,
+                             color = monotonic_decrease)
+                ) + 
+  
+  # Geoms
+  ggplot2::geom_point(shape = 19,
+                      size = 3) +
+  
+  ggplot2::geom_hline(yintercept = 43.52, color = "gray50", linetype = "solid", size = 0.5, alpha = 0.5) +
+  ggplot2::geom_hline(yintercept = 0, color = "gray50", linetype = "solid", size = 0.5, alpha = 0.5) +
+  
+  # Scales
+  ggplot2::scale_color_manual(name = "Monotonic decrease",
+                                values = color_vals) +
+  
+  ggplot2::scale_x_continuous(name = "Delay (days)",
+                              breaks = c(2,4,8,16,32,64,128),
+                              labels = c(2,4,8,16,32,64,128)) +
+  ggplot2::scale_y_continuous(name = "Indifference point (€)",
+                              limits = c(0,43.52)) +
+  
+  # Title
+  ggplot2::ggtitle(title_str) + 
+  
+  # Theme
+  ggplot2::theme_minimal() + 
+  ggplot2::theme(panel.grid.minor = ggplot2::element_blank())
+```
+
+
+# Write data to disk
+
+The directory in which the cleaned data will be written depends on whether all performance criteria were met (`preproc_incl_data_dir`) or not (`preproc_excl_data_dir`).
+```{r Define the data output directory}
+# Define output directory based on whether all performance criteria were met
+data_output_dir <- 
+  ifelse(all_criterion_met,
+         preproc_incl_data_dir,
+         preproc_excl_data_dir
+         )
+```
+
+We write 3 files to disk:
+
+1. calibration task data (final block only), which will be used for exploratory analysis of the indifference point procedure:
+```{r Write standard trials from calibration task to disk}
+# Calibration task: used for exploratory data analysis
+clbr_trials_standard_file <- 
+  file.path(data_output_dir,
+            sprintf("calibration_standard_trials_task-%s_pid-%.3d.csv",
+                    task_version,
+                    params$participant_id # pid
+                    )
+            )
+readr::write_csv(clbr_trials_standard,
+                 path = clbr_trials_standard_file
+            )
+print(sprintf("%s", clbr_trials_standard_file))
+```
+
+
+2. experimental task data, which will be used for computational modeling and control analyses:
+```{r Write standard trials from the experiment task to disk}
+# Standard trials from experiment: used for modeling
+expt_trials_standard_file <- 
+  file.path(data_output_dir,
+            sprintf("experiment_standard_trials_task-%s_pid-%.3d.csv", 
+                    task_version,
+                    params$participant_id # pid
+                    )
+            )
+  
+readr::write_csv(expt_trials_standard,
+                 path = expt_trials_standard_file
+            )
+print(sprintf("%s", expt_trials_standard_file))
+```
+
+3. indifference points from the calibration task:
+```{r Write indifference points from the calibrations task to disk}
+# Standard trials from experiment: used for modeling
+calibration_indifference_points_file <- 
+  file.path(data_output_dir,
+            sprintf("calibration_indifference_points_pid-%.3d.csv", 
+                    params$participant_id # pid
+                    )
+            )
+  
+readr::write_csv(calibration_indifference_points %>% 
+                   dplyr::select(subject_ix, t_l, ip),
+                 path = calibration_indifference_points_file
+            )
+print(sprintf("%s", calibration_indifference_points_file))
+```
