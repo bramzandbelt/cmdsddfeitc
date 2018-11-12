@@ -13,6 +13,57 @@ get_col_types <- function(file_type){
 
   switch(
     tolower(file_type),
+    auc_defer_speedup =
+      readr::cols_only(participant_id =
+                         readr::col_integer(),
+                       model =
+                         readr::col_factor(levels = c("DDM",
+                                                      "DFT_C"),
+                                           include_na = TRUE),
+                       parameterization =
+                         readr::col_factor(levels = c("one_condition",
+                                                      "defer_speedup_time_scaling",
+                                                      "defer_speedup_time_scaling_t0",
+                                                      "defer_speedup_value_scaling",
+                                                      "defer_speedup_value_scaling_t0"),
+                                           include_na = TRUE),
+                       bound_settings =
+                         readr::col_factor(levels = c("standard",
+                                                      "wide"),
+                                           include_na = TRUE),
+                       frame =
+                         readr::col_factor(levels = c("neutral",
+                                                      "defer",
+                                                      "speedup"),
+                                           include_na = TRUE,
+                                           ordered = TRUE),
+                       auc =
+                         readr::col_double()),
+    auc_date_delay =
+      readr::cols_only(participant_id =
+                         readr::col_integer(),
+                       model =
+                         readr::col_factor(levels = c("DDM",
+                                                      "DFT_C"),
+                                           include_na = TRUE),
+                       parameterization =
+                         readr::col_factor(levels = c("one_condition",
+                                                      "date_delay_time_scaling",
+                                                      "date_delay_time_scaling_t0",
+                                                      "date_delay_value_scaling",
+                                                      "date_delay_value_scaling_t0"),
+                                           include_na = TRUE),
+                       bound_settings =
+                         readr::col_factor(levels = c("standard",
+                                                      "wide"),
+                                           include_na = TRUE),
+                       frame =
+                         readr::col_factor(levels = c("delay",
+                                                      "date"),
+                                           include_na = TRUE,
+                                           ordered = TRUE),
+                       auc =
+                         readr::col_double()),
     calibration_indifference_points =
       readr::cols_only(subject_ix = readr::col_integer(),
                        t_l = readr::col_integer(),
