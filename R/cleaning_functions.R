@@ -127,6 +127,73 @@ get_col_types <- function(file_type){
                                                   ordered = TRUE),
                        response = readr::col_character(),
                        rt = readr::col_double()),
+    optim_stats_defer_speedup =
+      readr::cols_only(participant_id = readr::col_integer(),
+                       model =
+                         readr::col_factor(levels = c("DDM",
+                                                      "DFT_C"),
+                                           include_na = TRUE),
+                       parameterization =
+                         readr::col_factor(levels = c("one_condition",
+                                                      "defer_speedup_time_scaling",
+                                                      "defer_speedup_time_scaling_t0",
+                                                      "defer_speedup_value_scaling",
+                                                      "defer_speedup_value_scaling_t0"),
+                                           include_na = TRUE),
+                       bound_settings =
+                         readr::col_factor(levels = c("standard",
+                                                      "wide"),
+                                           include_na = TRUE),
+                       frame =
+                         readr::col_factor(levels = c("neutral",
+                                                      "defer",
+                                                      "speedup"),
+                                           include_na = TRUE,
+                                           ordered = TRUE),
+                       n_iter =
+                         readr::col_integer(),
+                       converged =
+                         readr::col_logical(),
+                       LL =
+                         readr::col_double(),
+                       AIC =
+                         readr::col_double(),
+                       BIC =
+                         readr::col_double()
+                       ),
+    optim_stats_date_delay =
+      readr::cols_only(participant_id = readr::col_integer(),
+                       model =
+                         readr::col_factor(levels = c("DDM",
+                                                      "DFT_C"),
+                                           include_na = TRUE),
+                       parameterization =
+                         readr::col_factor(levels = c("one_condition",
+                                                      "date_delay_time_scaling",
+                                                      "date_delay_time_scaling_t0",
+                                                      "date_delay_value_scaling",
+                                                      "date_delay_value_scaling_t0"),
+                                           include_na = TRUE),
+                       bound_settings =
+                         readr::col_factor(levels = c("standard",
+                                                      "wide"),
+                                           include_na = TRUE),
+                       frame =
+                         readr::col_factor(levels = c("delay",
+                                                      "date"),
+                                           include_na = TRUE,
+                                           ordered = TRUE),
+                       n_iter =
+                         readr::col_integer(),
+                       converged =
+                         readr::col_logical(),
+                       LL =
+                         readr::col_double(),
+                       AIC =
+                         readr::col_double(),
+                       BIC =
+                         readr::col_double()
+      ),
     trial_log_data_defer_speedup =
       readr::cols_only(subject_ix = readr::col_integer(),
                        block_id = readr::col_character(),
