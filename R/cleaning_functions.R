@@ -194,6 +194,64 @@ get_col_types <- function(file_type){
                        BIC =
                          readr::col_double()
       ),
+    predicted_ip_defer_speedup =
+      readr::cols_only(participant_id =
+                         readr::col_integer(),
+                       model =
+                         readr::col_factor(levels = c("DDM",
+                                                      "DFT_C"),
+                                           include_na = TRUE),
+                       parameterization =
+                         readr::col_factor(levels = c("one_condition",
+                                                      "defer_speedup_time_scaling",
+                                                      "defer_speedup_time_scaling_t0",
+                                                      "defer_speedup_value_scaling",
+                                                      "defer_speedup_value_scaling_t0"),
+                                           include_na = TRUE),
+                       bound_settings =
+                         readr::col_factor(levels = c("standard",
+                                                      "wide"),
+                                           include_na = TRUE),
+                       frame =
+                         readr::col_factor(levels = c("neutral",
+                                                      "defer",
+                                                      "speedup"),
+                                           include_na = TRUE,
+                                           ordered = TRUE),
+                       ip =
+                         readr::col_double(),
+                       delay =
+                         readr::col_integer()
+                       ),
+    predicted_ip_date_delay =
+      readr::cols_only(participant_id =
+                         readr::col_integer(),
+                       model =
+                         readr::col_factor(levels = c("DDM",
+                                                      "DFT_C"),
+                                           include_na = TRUE),
+                       parameterization =
+                         readr::col_factor(levels = c("one_condition",
+                                                      "date_delay_time_scaling",
+                                                      "date_delay_time_scaling_t0",
+                                                      "date_delay_value_scaling",
+                                                      "date_delay_value_scaling_t0"),
+                                           include_na = TRUE),
+                       bound_settings =
+                         readr::col_factor(levels = c("standard",
+                                                      "wide"),
+                                           include_na = TRUE),
+                       frame =
+                         readr::col_factor(levels = c("delay",
+                                                      "date"),
+                                           include_na = TRUE,
+                                           ordered = TRUE),
+                       ip =
+                         readr::col_double(),
+                       delay =
+                         readr::col_integer()
+      ),
+      readr::cols_only(subject_ix = readr::col_integer()),
     trial_log_data_defer_speedup =
       readr::cols_only(subject_ix = readr::col_integer(),
                        block_id = readr::col_character(),
