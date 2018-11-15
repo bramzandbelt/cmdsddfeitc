@@ -21,6 +21,7 @@ Imports:
     rprojroot,
     stringr,
     tibble,
-    tidyr
+    tidyr,
+    BayesFactor
 Remotes: bramzandbelt/itchmodel
 RoxygenNote: 6.1.0
