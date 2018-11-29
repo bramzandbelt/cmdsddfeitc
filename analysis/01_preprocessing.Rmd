@@ -2,6 +2,7 @@
 params:
   title: "01_preprocessing"
   participant_id: 1
+  visualize: FALSE
 title: '`r stringr::str_c(stringr::str_to_title(params$title), " - participant ", params$participant_id)`'
 author: "Bram Zandbelt"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
@@ -359,7 +360,8 @@ if (all_criterion_met) {
 Visualize the calibration task indifference points
 
 ```{r Visualize the calibration task indifference points, out.height="100%"}
-title_str <- ifelse(all(calibration_indifference_points$monotonic_decrease),
+if (params$visualize) {
+ title_str <- ifelse(all(calibration_indifference_points$monotonic_decrease),
                     "Indifference points decrease monotonically with delay",
                     expression(paste("Indifference points ", bold("do not"), " decrease monotonically with delay"))
                     )
@@ -398,7 +400,8 @@ ggplot2::ggplot(calibration_indifference_points,
   
   # Theme
   ggplot2::theme_minimal() + 
-  ggplot2::theme(panel.grid.minor = ggplot2::element_blank())
+  ggplot2::theme(panel.grid.minor = ggplot2::element_blank()) 
+}
 ```
 
 
