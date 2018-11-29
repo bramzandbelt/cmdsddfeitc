@@ -81,7 +81,21 @@ render_notebook <- function(notebook_file, notebook_dir = "analysis", reports_di
       max_iter <- sprintf("maxiter-%d", yaml_params$max_iter)
     }
 
-    suffix_str <- c(pid_str, model_str, pmz_str, bound_str, algorithm, max_iter)
+    if ("optimize" %in% names(run_params)) {
+      optim_str <- sprintf("optimize-%d", as.integer(run_params$optimize))
+    } else {
+      optim_str <- sprintf("optimize-%d", as.integer(yaml_params$optimize))
+    }
+
+    if ("visualize" %in% names(run_params)) {
+      vis_str <- sprintf("visualize-%d", as.integer(run_params$visualize))
+    } else {
+      vis_str <- sprintf("visualize-%d", as.integer(run_params$visualize))
+    }
+
+    suffix_str <- c(pid_str, model_str, pmz_str, bound_str, algorithm,
+                    max_iter, optim_str, vis_str)
+
     nonempty_str <- stringr::str_length(suffix_str) > 0
     suffix_str <- stringr::str_flatten(suffix_str[nonempty_str], collapse = "_")
     suffix_str <- stringr::str_c(suffix_str, ".html")
