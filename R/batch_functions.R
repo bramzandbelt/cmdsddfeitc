@@ -81,6 +81,18 @@ render_notebook <- function(notebook_file, notebook_dir = "analysis", reports_di
       max_iter <- sprintf("maxiter-%d", yaml_params$max_iter)
     }
 
+    if ("rel_tol" %in% names(run_params)) {
+      rel_tol <- sprintf("rel_tol-%.0e", run_params$rel_tol)
+    } else{
+      rel_tol <- sprintf("rel_tol-%.0e", yaml_params$rel_tol)
+    }
+
+    if ("n_pop_per_free_param" %in% names(run_params)) {
+      n_pop_per_free_param <- sprintf("n_pop_per_free_param-%d", run_params$n_pop_per_free_param)
+    } else{
+      n_pop_per_free_param <- sprintf("n_pop_per_free_param-%d", yaml_params$n_pop_per_free_param)
+    }
+
     if ("optimize" %in% names(run_params)) {
       optim_str <- sprintf("optimize-%d", as.integer(run_params$optimize))
     } else {
@@ -90,7 +102,7 @@ render_notebook <- function(notebook_file, notebook_dir = "analysis", reports_di
     if ("visualize" %in% names(run_params)) {
       vis_str <- sprintf("visualize-%d", as.integer(run_params$visualize))
     } else {
-      vis_str <- sprintf("visualize-%d", as.integer(run_params$visualize))
+      vis_str <- sprintf("visualize-%d", as.integer(yaml_params$visualize))
     }
 
     suffix_str <- c(pid_str, model_str, pmz_str, bound_str, algorithm,
