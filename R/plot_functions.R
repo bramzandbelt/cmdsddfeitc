@@ -21,6 +21,22 @@ get_aes_values <- function(aesthetic, parameterization) {
     } else if (stringr::str_detect(parameterization, "one_condition")) {
       return("#56B4E9")
     }
+  } else if (aesthetic == "shape") {
+    if (stringr::str_detect(parameterization, "defer_speedup")) {
+      # Delay: circle
+      # Deferral: plus
+      # Speedup: cross
+      return(c(1,3,4))
+
+    } else if (stringr::str_detect(parameterization, "date_delay")) {
+      # Delay: circle
+      # Date: plus
+      return(c(1,3))
+
+    } else if (stringr::str_detect(parameterization, "one_condition")) {
+      # Alwaus circle
+      return(c(1))
+    }
   }
 
 }
@@ -68,5 +84,3 @@ theme_cmfsddfeitc <- function() {
       # strip.text = ggplot2::element_blank()
     )
   }
-
-
