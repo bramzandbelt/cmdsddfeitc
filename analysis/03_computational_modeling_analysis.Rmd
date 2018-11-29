@@ -1,16 +1,17 @@
 ---
 params:
   title: "03_computational_modeling_analysis"
-  participant_id: 26 # identifier of participant in the study
-  model_name: "DFT_C" # name of the model class to fit to the data
-  parameterization: "value_scaling" # name of the parameterization to fit to the data
+  participant_id: 1   # identifier of participant in the study
+  model_name: "DDM" # name of the model class to fit to the data
+  parameterization: "time_scaling" # name of the parameterization to fit to the data
   bound_setting: "wide" # whether to use standard or wide bounds on parameter values
   algorithm: "DEoptimR"
-  optimize: TRUE
-  par_vals: !r c(0.95, 1, 1.05, 0.537, 1, 0.46, 10) # when optimize = FALSE, report is generated using these values
-  max_iter: 2000 # maximum number of iterations
-  rel_tol: 0.0001 # relative tolerance
+  par_vals: !r c(1.93, 1, 0.128, 1, 1.01, 0.843, 0.00210, 2.48, 1.30) # when optimize = FALSE, report is generated using these values
+  max_iter: 2500 # maximum number of iterations
+  rel_tol: 0.000001 # relative tolerance
   n_pop_per_free_param: 10
+  optimize: TRUE
+  visualize: FALSE
 title: '`r stringr::str_c(stringr::str_to_title(params$title), " - participant ", params$participant_id)`'
 subtitle: '`r stringr::str_c(stringr::str_to_upper(params$model_name), params$parameterization, stringr::str_c(params$bound_setting, " bounds"), sep = " - ")`'
 author: "Bram Zandbelt"
@@ -37,7 +38,28 @@ require(tidyverse)
 
 # Overview
 
-This notebook performs __computational modeling__ of an individual participant's data. It takes as input a participant's cleaned and preprocessed experiment data and produces as output visualizations and csv files written to disk of optimization statistics, best-fitting model parameter values, model fit to the data, and predicted indifference point curves and area under the curve statistics.
+This notebook contains the __computational modeling analysis__ of an individual participant's data. The goal of this analysis is to determine the fit the intertemporal choice task performance data with a cognitive model, parameterized in a certain way to account for the framing effects.
+
+The tasks that can be fit are:
+
+- defer-speedup task;
+- date-delay task.
+
+The models the can be used to fit the task performance are:
+
+- Drift Diffusion Model (`DDM`, choices and response times;  
+- Decision Field Theory (`DFT_C`, choices only; `DFT_CRT`, choices and response times),
+
+The parameterizations that can used to account for the framing effects are:
+
+- time scaling parameter ($\kappa$);
+- value scaling parameter ($\mu$);
+- time scaling parameter ($\kappa$) and value scaling parameter ($\mu$);
+- time scaling parameter ($\kappa$) and non-decision-time ($T_{ER}$);
+- value scaling parameter ($\mu$) and non-decision-time ($T_{ER}$);
+- time scaling parameter ($\kappa$), value scaling parameter ($\mu$), and non-decision-time ($T_{ER}$);
+
+This notebook takes as input a participant's cleaned and preprocessed experiment data and produces as output visualizations and csv files written to disk of optimization statistics, best-fitting model parameter values, model fit to the data, and predicted indifference point curves and area under the curve statistics.
 
 # Preliminaries
 
@@ -86,7 +108,7 @@ task_version <- ifelse(stringr::str_detect(expt_standard_trials_filename, "defer
                            )
                     )
 ```
-- several variables relevant for modeling, including the _parameterization (`_parameterization`)_,  _framing levels (`framing_levels`)_, _parameter bounds (`lowers`, `uppers`)_, among others.
+- the paths to the _task performance files (`expt_standard_trials_filename`)_ containing the data from the cleaned standard trials from the experiment and the  _task version (`task_version`).
 
 ```{r Define some variables relevant for modeling}
 # Parameterization & framing levels
@@ -134,6 +156,39 @@ free_par_bounds_tibb <-
   dplyr::select(bound, dplyr::everything())
 
 ```
+- several variables relevant for modeling, including the _parameterization (`_parameterization`)_,  _framing levels (`framing_levels`)_, _parameter bounds (`lowers`, `uppers`)_, among others.
+
+
+
+```{r Determine indifference points based on model fits}
+# Determine indifference points, given LL amount, LL delay, and best-fitting parameters
+predict_ip <- function(m_l, t_l, parameters, frame) {
+  
+  
+  if (frame == 'defer') {
+    numerator_lh <- as.double(parameters["w"]) * 1 * m_l^as.double(parameters["alpha"])
+  } else {
+    numerator_lh <- as.double(parameters["w"]) * as.double(parameters["mu"]) * m_l^as.double(parameters["alpha"])
+  }
+  
+  numerator_rh <- as.double(1 - (parameters["w"])) * as.double(parameters["kappa"]) * t_l^as.double(parameters["beta"])
+  numerator <- numerator_lh - numerator_rh
+  
+  if (frame == 'speedup') {
+    denominator <- as.double(parameters["w"]) * 1
+  } else {
+    denominator <- as.double(parameters["w"]) * as.double(parameters["mu"])
+  }
+  
+  frac <- numerator/denominator
+  frac[frac < 0] <- 0
+  
+  return(10^(log10(frac)/as.double(parameters["alpha"])))
+  
+}
+
+```
+- function for computing indifference points (`predict_ip`), based on amounts, delays, parmeter values, and frame.
 
 # Read data
 
@@ -167,84 +222,41 @@ n_data_points <- nrow(expt_trials)
 
 # Preprocess data
 
-```{r Initialize a few key variables}
-
-t_s <- unique(expt_trials$t_s)
-t_ls <- sort(unique(expt_trials$t_l))
-m_l <- unique(expt_trials$m_l)
-
-m_s_min <- 0
-m_s_max <- m_l
-m_s_step <- 0.17
-
-# Delays for which to compute AUC
-delays_ip <- seq(0,max(t_ls),1)
-```
-
-## Prepare observed data for modeling
+The task performance data is then cleaned and formatted for modeling and plotting purposes:
 
 ```{r Prepare observed data for modeling}
-model_trials <- 
-  expt_trials %>% 
-  dplyr::mutate_if(is.numeric, round, 2) %>%
-  dplyr::arrange(t_l, m_s) %>%
-  dplyr::group_by(t_l) %>%
-  dplyr::ungroup()
+# Delays for which to compute AUC
+delays_ip <- seq(0,max(expt_trials$t_l),1)
 
 # Count the number of data points
-n_data_points <- nrow(model_trials)
+n_data_points <- nrow(expt_trials)
 
+# Tidy & nest the observational data, as to prepare them for modeling
+obs_nested <- 
+  cmdsddfeitc::tidy_obs_prd_choice_rt(return_var = "obs",
+                                      obs = expt_trials)$obs_nested
 
-model_trials_grpd <- 
-  model_trials %>%
-  dplyr::group_by(frame)
-
-stimuli <- 
-  model_trials_grpd %>%
-  dplyr::select(frame, m_s_cat, m_s, t_s, m_l, t_l) %>%
-  tidyr::nest()
-
-observations <- 
-  model_trials_grpd %>%
-  dplyr::select(frame, rt, response) %>%
-  tidyr::nest()
-
-model_trials_formatted <- 
-dplyr::left_join(x = stimuli,
-                 y = observations,
-                 by = c("frame")
-                 ) %>%
-  dplyr::rename(stimuli = data.x,
-                observations = data.y)
-
-# Make sure that order of frames is correct, then convert to character (this is necessary)
-(model_trials_formatted <- 
-  model_trials_formatted %>%
-  dplyr::arrange(frame) %>%
-  dplyr::mutate(frame = as.character(frame))
-)
 ```
+- For modeling, the data is nested by frame and grouped into stimuli and observation variables.
+
 
 ## Prepare observed data for plotting
+
 ```{r Prepare observed data for plotting}
-obs_for_plotting <- 
-  expt_trials %>%
-  dplyr::group_by(frame, t_l, m_s_cat) %>%
-  dplyr::summarize(m_s = median(m_s),
-                   p_ll = sum((response == "upper")) / n()) %>%
-  dplyr::ungroup() %>%
-  dplyr::mutate(t_l = factor(t_l, 
-                             levels = t_ls, 
-                             labels = stringr::str_c(t_ls, " days"),
-                             ordered = TRUE),
-                m_s_cat = factor(m_s_cat,
-                                 labels = c("below IP", "at IP", "above IP")))
-
-print.data.frame(obs_for_plotting)
+if (params$visualize) {
+  obs_for_plotting <- 
+    obs_nested %>%
+    dplyr::select(-stimuli, -observations) %>%
+    tidyr::unnest()
+  
+  print.data.frame(obs_for_plotting)
+}
 ```
+- For plotting, probability of choosing LL ($P(LL)$) is computed for each combination of frame (2 or 3 levels, depending on task), delay (7 levels), and SS amount category (3 levels).
 
-## Fit model to data
-Here, the model parameterizations are fit to the choice and response time data, by minimizing negative log-likelihood using a differential evolution algorithm.
+# Analyze data
+
+## Fit model to the data or just compute log-likelihood for given parameter values
 
 ```{r Fit model to the data, warning=FALSE, results=FALSE}
 # Set seed for the random number generator, so that results can be reproduced
@@ -253,6 +265,7 @@ set.seed(19821101) # That's my DOB
 if (params$optimize) {
   
   if (params$algorithm == "DEoptim") {
+    # Optimization using bound constraints only
     optim_out <- 
      DEoptim::DEoptim(fn = itchmodel::get_log_likelihood, # optimization function
                       lower = lowers, # lower bounds
@@ -263,12 +276,14 @@ if (params$optimize) {
                                      trace = TRUE
                                      ),
                       # Additional arguments passed to fn and constr:
-                      data = model_trials_formatted,
+                      data = obs_nested,
                       model = params$model_name,
                       parameterization = parameterization
                       )
     
   } else if (params$algorithm == "DEoptimR") {
+    
+    # Optimization using bound constraints and nonlinear constraints
     optim_val <- rep(NA, params$max_iter)
     pars_per_iter <- matrix(nrow = params$max_iter, ncol = length(lowers))
     colnames(pars_per_iter) <- par_names
@@ -276,10 +291,9 @@ if (params$optimize) {
     this_optim_val <- 1e6
     iter <- 1
     
-    # constr <- itchmodel::get_nonlinear_constraints, # nonlinear constraints
-    # constr <- NULL
-    
+    # This quick and dirty way of iterations ensures that we can retrieve information about the evolution of parameter values and function value during optimization, which is not otherwise provided by DEoptimR::JDEoptim
     while (this_optim_val >= 1e6) {
+      # This ensures that reasonable starting parameter values (i.e. likelihoods between 0.01 and 0.99 for all trials)
       optim_out <-
         DEoptimR::JDEoptim(fn = itchmodel::get_log_likelihood, # optimization function
                            lower = lowers, # lower bounds
@@ -292,7 +306,7 @@ if (params$optimize) {
                            trace = TRUE,
                            details = TRUE,
                            # Additional arguments passed to fn and constr:
-                           data = model_trials_formatted,
+                           data = obs_nested,
                            model = params$model_name,
                            parameterization = parameterization,
                            pcrit = c(.95, .05)
@@ -321,7 +335,7 @@ if (params$optimize) {
                           trace = TRUE,
                           details = TRUE,
                           # Additional arguments passed to fn and constr:
-                          data = model_trials_formatted,
+                          data = obs_nested,
                           model = params$model_name,
                           parameterization = parameterization,
                           pcrit = c(.95, .05)
@@ -341,13 +355,16 @@ if (params$optimize) {
     }
   }
 } else {
+  # Do not optimize, but use parameter values specified in params$par_vals
   
+  # Compute log-likelihood
   val <- 
       itchmodel::get_log_likelihood(x = params$par_vals,
-                                    data = model_trials_formatted,
+                                    data = obs_nested,
                                     model = params$model_name,
                                     parameterization = parameterization)
   
+  # Fake optimization statistics for the rest of the notebook code to work
   if (params$algorithm == "DEoptim") {
     
     optim_out <- 
@@ -384,15 +401,10 @@ if (params$optimize) {
                       value = "value",
                       as.character(free_par_names),
                       factor_key = TRUE)
-  
   }
-  
 }
 
-```
-
-
-```{r Save log-likelihood and best fitting parameter values to variables }
+# Save log-likelihood and best fitting parameter values to variables
 if (params$algorithm == "DEoptim") {
   optim_val <- optim_out$member$bestvalit
   pars_per_iter <- optim_out$member$bestmemit
@@ -412,143 +424,65 @@ best_pars_per_frame <-
     best_pars_per_frame <- list(best_pars_per_frame)
   }
 ```
+If `params$optimize` is set to `TRUE`, the model (`params$model_name`) with a certain parameterization (`params$parameterization`) is fit to the data. Depending on the model, only choices are fit (`DFT_C`) or both choices and response times are fit (`DDM`, `DFT_CRT`). Model parameter values are optimized by minimizing negative log-likelihood using a differential evolution algorithm with bounds and nonlinear constraints (`DEOptimR`) or with bounds only (`DEoptim`). The bounds are largely based on previous studies (see `itchmodel::get_par_bounds`) and ensure that parameters take sensible balues. The nonlinear constraints, which require that P(choosing LL) > 0.95 when SS amount equals €0 and P(choosing LL) < 0.05 0 when SS amount equals the LL amount, tend to help the algorithm to converge faster and result in more meaningful parameter values.
+
+Alternatively, if `params$optimize` is set to `FALSE`, the parameter values specified in `params$par_vals` are used to compute the log-likelihood. This is useful if you want to test whether other parameter value combinations provide a better fit. 
 
 ## Make model predictions based on best-fitting parameters
 
-```{r Make model predictions based on best-fitting parameters}
-prds <- 
-  tidyr::crossing(frame = factor(levels = itchmodel::get_frames(parameterization = parameterization), ordered = TRUE),
-                  t_l = t_ls,
-                  t_s = t_s,
-                  m_l = m_l,
-                  m_s = seq(m_s_min, m_s_max, m_s_step)) %>%
-  dplyr::group_by(frame) %>%
-  tidyr::nest(.key = "stimuli") %>%
-  dplyr::mutate(params = best_pars_per_frame) %>%
-  dplyr::mutate(du = purrr::pmap(.l = list(parameters = .$params,
-                                           stimuli = .$stimuli,
-                                           frame = as.character(.$frame)),
-                                 .f = itchmodel::compute_transformation_diffs,
-                                 parameterization = parameterization,
-                                 variable = "du"),
-                dp = purrr::pmap(.l = list(parameters = .$params,
-                                           stimuli = .$stimuli,
-                                           frame = as.character(.$frame)),
-                                 .f = itchmodel::compute_transformation_diffs,
-                                 parameterization = parameterization,
-                                 variable = "dp")) %>%
-  dplyr::mutate(d = purrr::pmap(.l = list(params = .$params, 
-                                          du = .$du, 
-                                          dp = .$dp),
-                                .f = function(params, du, dp) {unname(params["w"] * du - (1 - params["w"]) * dp)}),
-                d_test = purrr::pmap(.l = list(parameters = .$params,
-                                           stimuli = .$stimuli,
-                                           frame = as.character(.$frame)),
-                                .f = itchmodel::compute_drift_rate,
-                                parameterization = parameterization)
-                )
-                
-if (params$model_name %in% c("DFT_C", "DFT_CRT")) {
-  prds <- 
-    prds %>%
-    dplyr::mutate(s = purrr::pmap(.l = list(x = .$params,
-                                           du = .$du,
-                                           dp = .$dp,
-                                           d = .$d),
-                                  .f = function(x, du, dp, d){
-                                    unname(sqrt(x["w"] * du^2 + (1 - x["w"]) * dp^2 - d^2))}
-                                  )
-                  ) %>%
-    dplyr::mutate(p_ll = purrr::pmap(.l = list(d = .$d,
-                                               s = .$s,
-                                               params = .$params),
-                                     .f = function(d, s, params) {
-                                       theta_star <- unname(params["theta_star"])
-                                       
-                                       itchmodel::dft_cp(d = d,
-                                                         s = s,
-                                                         theta = theta_star * s,
-                                                         z = rep(0,length(d)),
-                                                         response = rep("upper",length(d)))}
-                                   )
-                  )
-    
-  
-} else if (params$model_name == "DDM") {
-  prds <- 
-    prds %>%
-    dplyr::mutate(p_ll = purrr::pmap(.l = list(d = .$d,
-                                               params = .$params),
-                                     .f = function(d, s, params) {
-                                       itchmodel::db_bin_choice_prob(d = d, 
-                                                                     s = rep(1,length(d)),
-                                                                     a = rep(unname(params["a"]), length(d)), 
-                                                                     z = rep(0,length(d)))}
-                                   )
-                  )
-  
-}
+After fitting, the predicted data are prepared for plotting.
 
-print.data.frame(prds)
+```{r Make model predictions based on best-fitting parameters}
+# Put parameter values in right format for tidying
+par_vals <- optim_out$par
+names(par_vals) <- par_names
+
+par_vals_output <-
+  dplyr::bind_rows(par_vals) %>%
+  dplyr::mutate(participant_id = params$participant_id,
+                model_name = params$model_name,
+                parameterization = params$parameterization,
+                bound_settings = params$bound_setting) %>%
+  dplyr::select(participant_id, model_name, parameterization, bound_settings, dplyr::everything())
+
+# Retrieve observed data, predicted data, and intermediate modeling parameters
+obs_and_prds <- 
+  cmdsddfeitc::tidy_obs_prd_choice_rt(return_var = 'all',
+                                      obs = expt_trials, 
+                                      model = params$model_name, 
+                                      pmz = stringr::str_c(task_version, params$parameterization, sep = "_"),
+                                      parameters = par_vals_output)
 ```
+
+
 
 ## Prepare predicted data for plotting
 
 ```{r Prepare predicted data for plotting}
-prds_for_plot <- 
-  prds %>% 
-  dplyr::select(frame, stimuli, p_ll) %>% 
-  tidyr::unnest() %>%
-  dplyr::mutate(t_l = factor(t_l, 
-                             levels = c(2,4,8,16,32,64,128),
-                             labels = c("2 days", "4 days", "8 days", "16 days",
-                                        "32 days", "64 days", "128 days"),
-                             ordered = TRUE))
-
-print.data.frame(prds_for_plot)
-```
-
-## Determine indifference points based on model fits
-
-```{r Determine indifference points based on model fits}
-# Determine indifference points, given LL amount, LL delay, and best-fitting parameters
-predict_ip <- function(m_l, t_l, parameters, frame) {
+if (params$visualize) {
+  prds_for_plot <- 
+    obs_and_prds$prd_nested %>% 
+    dplyr::select(frame, stimuli, p_ll) %>% 
+    tidyr::unnest() %>%
+    dplyr::mutate(t_l = factor(t_l, 
+                               levels = c(2,4,8,16,32,64,128),
+                               labels = c("2 days", "4 days", "8 days", "16 days",
+                                          "32 days", "64 days", "128 days"),
+                               ordered = TRUE))
   
-  
-  if (frame == 'defer') {
-    numerator_lh <- unname(parameters["w"] * 1 * m_l^parameters["alpha"])
-  } else {
-    numerator_lh <- unname(parameters["w"] * parameters["mu"] * m_l^parameters["alpha"])
-  }
-  
-  numerator_rh <- unname((1 - parameters["w"]) * parameters["kappa"] * t_l^parameters["beta"])
-  numerator <- numerator_lh - numerator_rh
-  
-  if (frame == 'speedup') {
-    denominator <- unname(parameters["w"] * 1)
-  } else {
-    denominator <- unname(parameters["w"] * parameters["mu"])
-  }
-  
-  frac <- numerator/denominator
-  frac[frac < 0] <- 0
-  
-  return(10^(log10(frac)/unname(parameters["alpha"])))
-  
+  print.data.frame(prds_for_plot)
 }
-
 ```
 
-
-## Determine area under the curve based on model fits
+## Determine indifference points and area under the curve based on model fits
 
 ```{r Determine area under the curve based on model fits}
 prds <- 
-  prds %>%
-  dplyr::mutate(ip = purrr::pmap(.l = list(parameters = .$params,
+  obs_and_prds$all_nested %>%
+  dplyr::mutate(ip = purrr::pmap(.l = list(parameters = .$parameters,
                                            frame = as.character(.$frame)),
                                  .f = predict_ip,
-                                 m_l = m_l,
+                                 m_l = rep(43.52, length(delays_ip)),
                                  t_l = delays_ip)) %>%
   dplyr::mutate(auc = purrr::pmap(.l = list(y = .$ip),
                                   .f = DescTools::AUC,
@@ -556,9 +490,9 @@ prds <-
                                   method = "trapezoid"))
 ```
 
-## Select indifference point data for plotting
+## Select indifference point data and area-under-the-curve data for plotting and writing to disk
 
-```{r Select indifference point data for plotting}
+```{r Select indifference point data for plotting and writing to disk}
 prd_ip_data <- 
   prds %>%
   dplyr::select(frame, ip) %>%
@@ -574,7 +508,7 @@ print.data.frame(prd_ip_data)
 
 ### Optimization descriptives
 
-```{r Print optimization statistics}
+```{r Summarize optimization statistics}
 optim_stats <- 
   itchmodel::get_fit_stats(optim_output = optim_out, 
                            algorithm = params$algorithm,
@@ -585,7 +519,9 @@ optim_stats <-
 # n_iter in optim_out does not reflect the actual number of iterations, because we do iterations in a loop
 optim_stats$n_iter = iter
 
-print.data.frame(optim_stats)
+if (params$optimize) {
+  print.data.frame(optim_stats)
+}
 ```
 
 ### Best-fitting parameters values and lower and upper bounds
@@ -612,113 +548,219 @@ Do best-fitting parameter values end up at bounds
 
 
 ```{r Evolution of parameter values over iterations, out.width="100%"}
-h_line_data <- 
-  free_par_bounds_tibb %>%
-  tidyr::gather(key = "key", value = "value", -bound) %>% 
-  tidyr::spread(key = bound, value = value)
-
-
-ggplot2::ggplot(free_par_vals_per_iter_tibb,
-                ggplot2::aes(x = iter,
-                             y = value)) +
-  ggplot2::facet_wrap("key",
-                      scales = "free_y") +
-  ggplot2::geom_hline(data = h_line_data,
-                      ggplot2::aes(yintercept = lower),
-                      color = "red") +
-  ggplot2::geom_hline(data = h_line_data,
-                      ggplot2::aes(yintercept = upper),
-                      color = "red") +
-  
-  ggplot2::geom_line() +
-  cmdsddfeitc::theme_cmfsddfeitc()
+if (params$visualize & params$optimize) {
+ h_line_data <- 
+    free_par_bounds_tibb %>%
+    tidyr::gather(key = "key", value = "value", -bound) %>% 
+    tidyr::spread(key = bound, value = value)
+ 
+ ggplot2::ggplot(free_par_vals_per_iter_tibb,
+                 ggplot2::aes(x = iter,
+                              y = value)) +
+   ggplot2::facet_wrap("key",
+                       scales = "free_y") +
+   ggplot2::geom_hline(data = h_line_data,
+                       ggplot2::aes(yintercept = lower),
+                       color = "red") +
+   ggplot2::geom_hline(data = h_line_data,
+                       ggplot2::aes(yintercept = upper),
+                       color = "red") +
+   ggplot2::geom_line() +
+   cmdsddfeitc::theme_cmfsddfeitc() 
+}
 ```
 
+## Observed vs. predicted data
 
-## Model fit to the data
+### Probability of choosing the LL option
 
-```{r Model fit to the data, , out.width="100%"}
-ggplot2::ggplot(data = prds_for_plot,
-                ggplot2::aes(x = m_s,
-                             y = p_ll, 
-                             group = frame,
-                             color = frame)) +
-  ggplot2::facet_wrap("t_l") +
-  ggplot2::geom_line() + 
-  ggplot2::geom_point(data = obs_for_plotting,
-                      ggplot2::aes(x = m_s,
-                                   y = p_ll,
-                                   color = frame,
-                                   shape = m_s_cat),
-                      stroke = 1.5) +
-  ggplot2::scale_x_continuous(name = "Smaller sooner amount (€)",
-                              breaks = c(0, 20, 40),
-                              limits = c(0,43.52)
-                              ) +
-  ggplot2::scale_y_continuous(name = "P(choosing LL)",
-                              breaks = seq(0,1,0.5),
-                              limits = c(0,1)) +
-  ggplot2::scale_shape_manual(name = "SS amount category",
-                              values = c(6,1,2)) +
-  ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
-  cmdsddfeitc::theme_cmfsddfeitc() + 
-  ggplot2::theme(legend.position = "bottom",
-                 legend.direction = "vertical", 
-                 legend.box = "horizontal")
+This visualization highlights differences between frames, if any
+```{r Model fit to the data, out.width="100%"}
+if (params$visualize) {
+  ggplot2::ggplot(data = prds_for_plot,
+                  ggplot2::aes(x = m_s,
+                               y = p_ll, 
+                               group = frame,
+                               color = frame)) +
+    ggplot2::facet_wrap("t_l") +
+    ggplot2::geom_line() + 
+    ggplot2::geom_point(data = obs_for_plotting,
+                        ggplot2::aes(x = m_s,
+                                     y = p_ll,
+                                     color = frame,
+                                     shape = m_s_cat),
+                        stroke = 1.5) +
+    ggplot2::scale_x_continuous(name = "Smaller sooner amount (€)",
+                                breaks = c(0, 20, 40),
+                                limits = c(0,43.52)
+                                ) +
+    ggplot2::scale_y_continuous(name = "P(choosing LL)",
+                                breaks = seq(0,1,0.5),
+                                limits = c(0,1)) +
+    ggplot2::scale_shape_manual(name = "SS amount category",
+                                values = c(6,1,2)) +
+    ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
+    cmdsddfeitc::theme_cmfsddfeitc() + 
+    ggplot2::theme(legend.position = "right",
+                   legend.direction = "vertical", 
+                   legend.box = "vertical")
+}
 ```
 
+This visualization allows for checking model fit more precisely
 ```{r Model fit to the data as t_l by frame grid, , out.width="100%"}
-ggplot2::ggplot(data = prds_for_plot,
-                ggplot2::aes(x = m_s,
-                             y = p_ll, 
-                             color = frame)) +
-  # ggplot2::facet_grid(t_l ~ frame) +
-  ggplot2::facet_grid(frame ~ t_l) +
-  ggplot2::geom_line() + 
-  ggplot2::geom_point(data = obs_for_plotting,
-                      ggplot2::aes(x = m_s,
-                                   y = p_ll,
-                                   color = frame,
-                                   shape = m_s_cat),
-                      stroke = 1) +
-  ggplot2::scale_x_continuous(name = "Smaller sooner amount (€)",
-                              breaks = c(0, 20, 40),
-                              limits = c(0,43.52)
-                              ) +
-  ggplot2::scale_y_continuous(name = "P(choosing LL)",
-                              breaks = seq(0,1,0.5),
-                              limits = c(0,1)) +
-  ggplot2::scale_shape_manual(name = "SS amount category",
-                              values = c(6,1,2)) +
-  ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
-  cmdsddfeitc::theme_cmfsddfeitc() + 
-  ggplot2::theme(legend.position = "bottom",
-                 legend.direction = "vertical", 
-                 legend.box = "horizontal")
-  # ggplot2::theme(legend.position = "right")
+if (params$visualize) {
+  ggplot2::ggplot(data = prds_for_plot,
+                  ggplot2::aes(x = m_s,
+                               y = p_ll, 
+                               color = frame)) +
+    # ggplot2::facet_grid(t_l ~ frame) +
+    ggplot2::facet_grid(frame ~ t_l) +
+    ggplot2::geom_line() + 
+    ggplot2::geom_point(data = obs_for_plotting,
+                        ggplot2::aes(x = m_s,
+                                     y = p_ll,
+                                     color = frame,
+                                     shape = m_s_cat),
+                        stroke = 1) +
+    ggplot2::scale_x_continuous(name = "Smaller sooner amount (€)",
+                                breaks = c(0, 20, 40),
+                                limits = c(0,43.52)
+                                ) +
+    ggplot2::scale_y_continuous(name = "P(choosing LL)",
+                                breaks = seq(0,1,0.5),
+                                limits = c(0,1)) +
+    ggplot2::scale_shape_manual(name = "SS amount category",
+                                values = c(6,1,2)) +
+    ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
+    cmdsddfeitc::theme_cmfsddfeitc() + 
+    ggplot2::theme(legend.position = "bottom",
+                   legend.direction = "vertical", 
+                   legend.box = "horizontal")
+    # ggplot2::theme(legend.position = "right")
+}
+```
 
+### Median response times
+
+```{r Observed and predicted median response times, out.width="100%"}
+
+if (params$visualize & params$model_name %in% c("DDM")) {
+
+  stimuli <- 
+    obs_and_prds$obs_nested %>%
+    dplyr::select(-summary_stats) %>%
+    tidyr::unnest() %>%
+    dplyr::distinct(participant_id, frame, m_s_cat, m_s, t_s, m_l, t_l) %>%
+    dplyr::mutate(frame = factor(frame,
+                                 levels = itchmodel::get_frames(parameterization),
+                                 ordered = TRUE)) %>%
+    dplyr::group_by(participant_id, frame) %>%
+    tidyr::nest(.key = stimuli)
+    
+  parameters <- 
+    obs_and_prds$all_nested %>%
+    dplyr::select(participant_id, frame, parameters)
+  
+  
+  stim_params_d_tmp <- 
+    dplyr::left_join(stimuli, parameters, by = c("participant_id", "frame")) %>%
+    dplyr::mutate(d = purrr::pmap(.l = list(frame = .$frame,
+                                            parameters = .$parameters,
+                                            stimuli = .$stimuli),
+                                  .f = itchmodel::compute_drift_rate,
+                                  parameterization = stringr::str_c(task_version, params$parameterization, sep = "_")
+                                  )
+                  )
+  
+  # Relevant columns
+  rel_cols <- c("participant_id","frame","type","m_s_cat","m_s","t_s","m_l","t_l","med_rt") 
+  
+  stim_d <- stim_params_d_tmp %>% dplyr::select(-parameters) %>% tidyr::unnest()
+  parameters <- parameters %>% tidyr::unnest()
+  stim_params_d <- 
+    dplyr::left_join(x = stim_d, y = parameters, by = c("participant_id", "frame")) %>%
+    dplyr::mutate(med_rt = purrr::pmap_dbl(.l = list(a = .$a,
+                                                     v = .$d,
+                                                     t0 = .$t0,
+                                                     z = 0.5* .$a),
+                                            .f = rtdists::qdiffusion,
+                                           response = "upper", # For typical values, predictions for median RTs were found not to differ between "lower" and "upper" responses, hence only "upper"
+                                           p = 0.5,
+                                           scale_p = TRUE)
+                  ) %>%
+    dplyr::mutate(type = "prd") %>% 
+    dplyr::mutate(t_l = factor(t_l, 
+                               levels = c(2,4,8,16,32,64,128),
+                               labels = c("2 days", "4 days", "8 days", "16 days",
+                                          "32 days", "64 days", "128 days"),
+                               ordered = TRUE)) %>%
+    dplyr::select(rel_cols)
+  
+  # Summary stats - observations
+  obs_summary_stats <- 
+    obs_nested %>% 
+    dplyr::mutate(frame = factor(frame,
+                                 levels = itchmodel::get_frames(parameterization),
+                                 ordered = TRUE)) %>%
+    dplyr::select(-stimuli, -observations) %>% 
+    tidyr::unnest() %>% 
+    dplyr::mutate(type = "obs",
+                  m_s_cat = forcats::fct_recode(m_s_cat, 
+                                                below_ip = "below IP",
+                                                at_ip = "at IP",
+                                                above_ip = "above IP"
+                                                )
+                  ) %>% 
+    dplyr::select(rel_cols)
+  
+  # Merge observed and predicted median RTs
+  rt_data_plot <- dplyr::bind_rows(obs_summary_stats, stim_params_d)
+  
+  ggplot2::ggplot(rt_data_plot,
+                  ggplot2::aes(x = frame,
+                               y = med_rt,
+                               color = type,
+                               shape = type)) +
+    ggplot2::facet_grid(m_s_cat ~ t_l) + 
+    ggplot2::geom_hline(yintercept = 1.5, linetype = "dashed") +
+    ggplot2::geom_hline(yintercept = 10, linetype = "dashed") +
+    ggplot2::geom_point(stroke = 1) +
+    ggplot2::scale_x_discrete(name = "Frame") +
+    ggplot2::scale_y_continuous(name = "Response time (s)",
+                                breaks = c(2, 5, 8),
+                                limits = c(0,10)) +
+    ggplot2::scale_shape_manual(values = c(3,4)) +
+    ggplot2::labs(shape = "Type", color = "Type") +
+    ggplot2::ggtitle("RT across frames, delays, SS amount") +
+    ggplot2::coord_flip() +
+    
+    cmdsddfeitc::theme_cmfsddfeitc() + 
+    ggplot2::theme(legend.position = "bottom",
+                   strip.text.y = element_text(angle = 0)) 
+}
 ```
 
 
-
-
-
-## Indifference point by delay curves
+## Predicted indifference point by delay curves
 
 ```{r Indifference point by delay curves, out.width="100%"}
-ggplot2::ggplot(prd_ip_data,
-                ggplot2::aes(x = delay,
-                             y = ip, 
-                             color = frame)) + 
-  ggplot2::geom_line() + 
-  
-  ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
-  ggplot2::scale_x_continuous(name = "Delay (days)",
-                              limits = c(0, max(t_ls))) +
-  ggplot2::scale_y_continuous(name = "Indifference point (€)",
-                              limits = c(0, m_l)) +
-  cmdsddfeitc::theme_cmfsddfeitc()
+if (params$visualize) {
+  ggplot2::ggplot(prd_ip_data,
+                  ggplot2::aes(x = delay,
+                               y = ip, 
+                               color = frame)) + 
+    ggplot2::geom_line() + 
+    
+    ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
+    ggplot2::scale_x_continuous(name = "Delay (days)",
+                                limits = c(0, 128)) +
+    ggplot2::scale_y_continuous(name = "Indifference point (€)",
+                                limits = c(0, 43.52)) +
+    cmdsddfeitc::theme_cmfsddfeitc()
+}
 ```
+
 
 # Write data
 
@@ -729,7 +771,6 @@ The directory in which the computational modeling data will be written depends o
 if (params$optimize) {
   
   # Define output directory based on whether all performance criteria were met
-  
   data_output_dir <- 
     ifelse(optim_stats$converged,
            converged_models_dir,
@@ -749,7 +790,8 @@ if (params$optimize) {
                   model_name = params$model_name,
                   parameterization = params$parameterization,
                   bound_settings = params$bound_setting) %>%
-    dplyr::select(participant_id, model_name, parameterization, bound_settings, dplyr::everything())
+    dplyr::select(participant_id, model_name, parameterization, bound_settings,
+                  dplyr::everything())
   
   # Make file name human- and machine-readable, so that main results can be read from file name
   par_vals_file <-
@@ -799,6 +841,67 @@ if (params$optimize) {
               )
   print(sprintf("Optimization statistics: %s", optim_stats_file))
   
+  
+  # Write evolution of parameter value across iterations to disk -----------------
+
+  par_vals_per_iter <- 
+    tibble::as.tibble(pars_per_iter) %>% 
+    dplyr::mutate(participant_id = params$participant_id,
+                  model_name = params$participant_id,
+                  parameterization = parameterization,
+                  bound_settings = params$bound_setting,
+                  iter = 1:n()) %>%
+    dplyr::select(participant_id, model_name, parameterization, bound_settings, iter,
+                  dplyr::everything())
+    
+  par_vals_per_iter_file <-
+    file.path(data_output_dir,
+              sprintf("evolution_of_params_across_iters_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+                      task_version,
+                      params$participant_id, # pid
+                      params$participant_id, # mode
+                      parameterization, # pmz
+                      params$bound_setting, # bounds
+                      optim_stats$BIC # BIC
+              )
+    )
+  
+  readr::write_csv(par_vals_per_iter,
+                   path = par_vals_per_iter_file
+  )
+  
+  print(sprintf("Evolution of parameter values during optimization: %s", par_vals_per_iter_file))
+
+# Write evolution of optimization function value across iterations to disk -----
+
+  optim_fun_val_per_iter <- 
+    tibble::tibble(fun_val = optim_val) %>%
+    dplyr::mutate(participant_id = params$participant_id,
+                  model_name = params$participant_id,
+                  parameterization = parameterization,
+                  bound_settings = params$bound_setting,
+                  iter = 1:n()) %>%
+    dplyr::select(participant_id, model_name, parameterization, bound_settings, iter,
+                  dplyr::everything())
+    
+  optim_fun_val_per_iter_file <-
+    file.path(data_output_dir,
+              sprintf("evolution_of_fun_val_across_iters_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+                      task_version,
+                      params$participant_id, # pid
+                      params$participant_id, # mode
+                      parameterization, # pmz
+                      params$bound_setting, # bounds
+                      optim_stats$BIC # BIC
+              )
+    )
+  
+  readr::write_csv(optim_fun_val_per_iter,
+                   path = optim_fun_val_per_iter_file
+  )  
+  
+  print(sprintf("Evolution of function value during optimization: %s", optim_fun_val_per_iter_file))
+  
   # Write predicted IP data to disk --------------------------------------------
   
   # Add relevant variables, so that these files can be read and combined into a 
@@ -842,7 +945,8 @@ if (params$optimize) {
     dplyr::mutate(participant_id = params$participant_id,
                   bound_settings = params$bound_setting,
                   model = params$model_name,
-                  parameterization = params$parameterization) %>%
+                  parameterization = params$parameterization,
+                  norm_auc = auc / (43.52 * 128)) %>%
     dplyr::select(participant_id, model, parameterization, bound_settings, dplyr::everything())
   
   
@@ -865,7 +969,4 @@ if (params$optimize) {
               )
   print(sprintf("Area under the curve: %s", auc_output_file))
 }
-
-
-
 ```
