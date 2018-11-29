@@ -342,7 +342,6 @@ get_col_types <- function(file_type){
 #' @param pmz Parameterization (e.g. "date_delay_value_scaling)
 #' @param parameters Vector (unnamed) with best-fitting parameter values
 #' @export
-
 tidy_obs_prd_choice_rt <- function(return_var="obs", obs, model="", pmz="", parameters=NA) {
 
   assertthat::assert_that(return_var %in% c("obs", "prd", "all"),
