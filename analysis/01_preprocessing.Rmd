@@ -2,7 +2,7 @@
 params:
   title: "01_preprocessing"
   participant_id: 1
-  visualize: FALSE
+  visualize: TRUE
 title: '`r stringr::str_c(stringr::str_to_title(params$title), " - participant ", params$participant_id)`'
 author: "Bram Zandbelt"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
