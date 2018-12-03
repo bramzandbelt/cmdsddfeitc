@@ -106,7 +106,7 @@ render_notebook <- function(notebook_file, notebook_dir = "analysis", reports_di
     }
 
     suffix_str <- c(pid_str, model_str, pmz_str, bound_str, algorithm,
-                    max_iter, optim_str, vis_str)
+                    max_iter, rel_tol, n_pop_per_free_param, optim_str, vis_str)
 
     nonempty_str <- stringr::str_length(suffix_str) > 0
     suffix_str <- stringr::str_flatten(suffix_str[nonempty_str], collapse = "_")
@@ -127,8 +127,13 @@ render_notebook <- function(notebook_file, notebook_dir = "analysis", reports_di
                                    rprojroot::find_root(rprojroot::has_file("DESCRIPTION")),
                                  params = run_params
                                  ),
-               error = function(e) print(sprintf("Failed to render notebook for participant %d.",
-                                                 run_params$participant_id))
+               error = function(e) {
+                 message(e)
+                 message(sprintf("Failed to render notebook for participant %d.",
+                                 run_params$participant_id)
+                         )
+
+                 }
                )
 
     }

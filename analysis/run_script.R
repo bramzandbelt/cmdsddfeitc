@@ -1,39 +1,93 @@
-# 01. Preprocessing
+require(tidyverse)
+library(cmdsddfeitc)
 
-participant_id <- seq(36)
+args <- commandArgs(TRUE)
 
-cmdsddfeitc::render_notebook(notebook_file = "01_preprocessing.Rmd",
-                             notebook_dir = "analysis",
-                             reports_dir = "reports/01_preprocessing",
-                             params_tibble = tidyr::crossing(participant_id = participant_id),
-                             force = TRUE)
+notebook_ix <- as.integer(args[1])
 
-# 02. Exploratory Data Analysis
+notebook_file <- switch(notebook_ix,
+                        "1" = "01_preprocessing.Rmd",
+                        "2" = "02_exploratory_data_analysis.Rmd",
+                        "3" = "03_computational_modeling_analysis.Rmd")
 
-participant_id <- c(1, 3, 4, 6, 7, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20,
-                    21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 35, 36)
 
-cmdsddfeitc::render_notebook(notebook_file = "02_exploratory_data_analysis.Rmd",
-                             notebook_dir = "analysis",
-                             reports_dir = "reports/02_exploratory_data_analysis",
-                             params_tibble = tidyr::crossing(participant_id = participant_id),
-                             force = TRUE)
+if (notebook_ix == 1) {
+  # Participant ID
+  pid <- as.integer(args[2])
 
-# 03. Computational modeling
+  cmdsddfeitc::render_notebook(notebook_file = "01_preprocessing.Rmd",
+                               notebook_dir = "analysis",
+                               reports_dir = "reports/01_preprocessing",
+                               params_tibble = tidyr::crossing(participant_id = pid,
+                                                               visualize = TRUE),
+                               force = TRUE)
 
-# Defer-speedup
-participant_id <- c(4,7,9,10,11,13,15,19,21,24,26,30,32,36,37,39,41,42)
-# Date-delay
-participant_id <- c(1,3,6,12,14,17,18,20,22,23,25,27,29,31,33,35,38,40,43)
+} else if (notebook_ix == 2) {
+  # Participant ID
+  pid <- as.integer(args[2])
 
-pmzs <- c("time_scaling", "value_scaling")
+  cmdsddfeitc::render_notebook(notebook_file = "02_exploratory_data_analysis.Rmd",
+                               notebook_dir = "analysis",
+                               reports_dir = "reports/02_exploratory_data_analysis",
+                               params_tibble = tidyr::crossing(participant_id = pid,
+                                                               visualize = TRUE),
+                               force = TRUE)
 
-cmdsddfeitc::render_notebook(notebook_file = "03_computational_modeling_analysis.Rmd",
-                             notebook_dir = "analysis",
-                             reports_dir = "reports/03_computational_modeling_analysis",
-                             params_tibble = tidyr::crossing(participant_id = participant_id,
-                                                             model_name = "DDM",
-                                                             parameterization = pmzs,
-                                                             bound_setting = "wide",
-                                                             max_iter = 2500),
-                             force = TRUE)
+} else if (notebook_ix == 3) {
+
+  pid <- as.integer(args[2])
+  model_name <- args[3]
+  parameterization <- args[4]
+  bound_setting <- args[5]
+  comp_job <- args[6]
+
+  if (comp_job == "all") {
+    do_optimize = TRUE
+    do_visualize = TRUE
+  } else if (comp_job == "fit") {
+    do_optimize = TRUE
+    do_visualize = FALSE
+  } else if (comp_job == "vis") {
+    do_optimize = FALSE
+    do_visualize = TRUE
+
+    # Load best-fitting parameters from file
+
+    data_dir <- NA
+
+
+    par_vals_file <-
+      file.path(data_output_dir,
+                sprintf("best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+                        ,
+                        pid, # pid
+                        model_name, # mode
+                        parameterization, # pmz
+                        bound_setting, # bounds
+                        optim_stats$BIC # BIC
+                )
+      )
+
+
+  } else {
+    do_optimize = TRUE
+    do_visualize = TRUE
+  }
+
+  cmdsddfeitc::render_notebook(notebook_file = "03_computational_modeling_analysis.Rmd",
+                               notebook_dir = "analysis",
+                               reports_dir = "reports/03_computational_modeling_analysis",
+                               params_tibble = tidyr::crossing(participant_id = pid,
+                                                               model_name = model_name,
+                                                               parameterization = parameterization,
+                                                               bound_setting = "wide",
+                                                               algorithm = "DEoptimR",
+                                                               max_iter = 10,
+                                                               rel_tol = 0.000001,
+                                                               n_pop_per_free_param = 10,
+                                                               optimize = do_optimize,
+                                                               visualize = do_visualize),
+                               force = TRUE)
+}
+
+
