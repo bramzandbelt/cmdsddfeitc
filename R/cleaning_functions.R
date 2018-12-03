@@ -479,7 +479,7 @@ tidy_obs_prd_choice_rt <- function(return_var="obs", obs, model="", pmz="", para
                                     parameterization = parameterization)
       )
 
-    if (params$model_name %in% c("DFT_C", "DFT_CRT")) {
+    if (model %in% c("DFT_C", "DFT_CRT")) {
       prd_nested <-
         prd_nested %>%
         dplyr::mutate(s = purrr::pmap(.l = list(x = .$parameters,
