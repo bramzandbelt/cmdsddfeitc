@@ -38,9 +38,16 @@ if (notebook_ix == 1) {
   pid <- as.integer(args[2])
   model_name <- args[3]
   parameterization <- args[4]
-  max_iter <- args[5]
+  max_iter <- as.integer(args[5])
   bound_setting <- args[6]
   comp_job <- args[7]
+
+  print(sprintf("Participant id: %d", pid))
+  print(sprintf("Model name: %s", model_name))
+  print(sprintf("Parameterization: %s", parameterization))
+  print(sprintf("Max. number of iterations: %d", max_iter))
+  print(sprintf("Bound setting: %s", bound_setting))
+  print(sprintf("Computing job: %s", comp_job))
 
   if (comp_job == "all") {
     do_optimize = TRUE
@@ -52,23 +59,22 @@ if (notebook_ix == 1) {
     do_optimize = FALSE
     do_visualize = TRUE
 
-    # Load best-fitting parameters from file
-
-    data_dir <- NA
-
-
-    par_vals_file <-
-      file.path(data_output_dir,
-                sprintf("best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
-                        ,
-                        pid, # pid
-                        model_name, # mode
-                        parameterization, # pmz
-                        bound_setting, # bounds
-                        optim_stats$BIC # BIC
-                )
-      )
-
+    # # Load best-fitting parameters from file
+    #
+    # data_dir <- NA
+    #
+    #
+    # par_vals_file <-
+    #   file.path(data_output_dir,
+    #             sprintf("best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+    #                     ,
+    #                     pid, # pid
+    #                     model_name, # mode
+    #                     parameterization, # pmz
+    #                     bound_setting, # bounds
+    #                     optim_stats$BIC # BIC
+    #             )
+    #   )
 
   } else {
     do_optimize = TRUE
