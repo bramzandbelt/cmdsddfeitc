@@ -29,6 +29,6 @@ for model_name in `echo $model_names`
 do
   for parameterization in `echo $parameterizations`
   do
-    echo "module unload R; module load R/3.5.1; source ~/.bashrc; cd /project/3017051.01; Rscript $PWD/analysis/run_script.R $nb_ix $pid $model_name $parameterization $max_iter $bound_setting $comp_job" | qsub -N "comp_model_analysis_pid-$pid_model-$model_name_pmz-$parameterization_max_iter-$max_iter" -l walltime=06:00:00,mem=1Gb;
+    echo "module unload R; module load R/3.5.1; source ~/.bashrc; cd /project/3017051.01; Rscript $PWD/analysis/run_script.R $nb_ix $pid $model_name $parameterization $max_iter $bound_setting $comp_job" | qsub -N "comp_model_analysis_pid-$pid-model-$model_name-pmz-$parameterization-max_iter-$max_iter" -l walltime=06:00:00,mem=1Gb;
   done
 done
