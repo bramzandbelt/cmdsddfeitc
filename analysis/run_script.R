@@ -38,8 +38,9 @@ if (notebook_ix == 1) {
   pid <- as.integer(args[2])
   model_name <- args[3]
   parameterization <- args[4]
-  bound_setting <- args[5]
-  comp_job <- args[6]
+  max_iter <- args[5]
+  bound_setting <- args[6]
+  comp_job <- args[7]
 
   if (comp_job == "all") {
     do_optimize = TRUE
@@ -82,7 +83,7 @@ if (notebook_ix == 1) {
                                                                parameterization = parameterization,
                                                                bound_setting = "wide",
                                                                algorithm = "DEoptimR",
-                                                               max_iter = 10,
+                                                               max_iter = max_iter,
                                                                rel_tol = 0.000001,
                                                                n_pop_per_free_param = 10,
                                                                optimize = do_optimize,
