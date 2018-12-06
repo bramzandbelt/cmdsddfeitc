@@ -12,6 +12,7 @@ params:
   n_pop_per_free_param: 10
   optimize: TRUE
   visualize: FALSE
+  pars_from_file: FALSE
 title: '`r stringr::str_c(stringr::str_to_title(params$title), " - participant ", params$participant_id)`'
 subtitle: '`r stringr::str_c(stringr::str_to_upper(params$model_name), params$parameterization, stringr::str_c(params$bound_setting, " bounds"), sep = " - ")`'
 author: "Bram Zandbelt"
@@ -355,11 +356,54 @@ if (params$optimize) {
     }
   }
 } else {
-  # Do not optimize, but use parameter values specified in params$par_vals
+  # Do not optimize, but use parameter values loaded from disk or specified in params$par_vals
   
+  if (params$pars_from_file) {
+    par_vals_file <-
+      list.files(path = converged_models_dir,
+                 pattern = sprintf("^best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s.*.csv$",
+                                   params$participant_id, # pid
+                                   params$model_name, # model
+                                   params$parameterization, # pmz
+                                   params$bound_setting # bounds
+                 )
+      )
+
+    best_pars <-
+      readr::read_csv(file = file.path(converged_models_dir, par_vals_file),
+                      col_types = readr::cols()) %>%
+      dplyr::select(-participant_id, -model_name, -parameterization, -bound_settings) %>%
+      as.double()
+    
+    evol_fun_val_file <- 
+      list.files(path = converged_models_dir,
+                 pattern = sprintf("^evolution_of_fun_val_across_iters_task-.*_pid-%.3d_model-.*_pmz-%s_bounds-%s.*.csv$",
+                                   params$participant_id, # pid
+                                   # params$model_name, # model
+                                   params$parameterization, # pmz
+                                   params$bound_setting # bounds
+                                   )
+                 )
+      
+    evol_par_val_file <- 
+      list.files(path = converged_models_dir,
+                 pattern = sprintf("^evolution_of_params_across_iters_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC.*.csv$",
+                                   params$participant_id, # pid
+                                   params$model_name, # model
+                                   params$parameterization, # pmz
+                                   params$bound_setting # bounds
+                                   )
+                 )
+    
+    
+    
+  } else {
+    best_pars <- params$par_vals
+  }
+    
   # Compute log-likelihood
   val <- 
-      itchmodel::get_log_likelihood(x = params$par_vals,
+      itchmodel::get_log_likelihood(x = best_pars,
                                     data = obs_nested,
                                     model = params$model_name,
                                     parameterization = parameterization)
@@ -367,21 +411,30 @@ if (params$optimize) {
   # Fake optimization statistics for the rest of the notebook code to work
   if (params$algorithm == "DEoptim") {
     
-    optim_out <- 
+    
+    if (params$pars_from_file) {
+      
+    } else {
+      
+      optim_out <- 
       list(member = list(bestvalit = val,
-                         bestmemit = matrix(params$par_vals, 
+                         bestmemit = matrix(best_pars, 
                                             nrow = 1, 
                                             dimnames = list(1,
                                                             stringr::str_c("par", seq(1,8)))),
-                         bestmem = params$par_vals),
+                         bestmem = best_pars),
            optim = list(bestval = val,
                         iter = 1))
+      
+    }
+    
+    
     
   } else if (params$algorithm == "DEoptimR") {
     
     optim_out <- 
       list(value = val,
-           par = params$par_vals,
+           par = best_pars,
            iter = 1,
            convergence = FALSE)
     
@@ -548,7 +601,7 @@ Do best-fitting parameter values end up at bounds
 
 
 ```{r Evolution of parameter values over iterations, out.width="100%"}
-if (params$visualize & params$optimize) {
+if (params$visualize) {
  h_line_data <- 
     free_par_bounds_tibb %>%
     tidyr::gather(key = "key", value = "value", -bound) %>% 
@@ -847,8 +900,8 @@ if (params$optimize) {
   par_vals_per_iter <- 
     tibble::as.tibble(pars_per_iter) %>% 
     dplyr::mutate(participant_id = params$participant_id,
-                  model_name = params$participant_id,
-                  parameterization = parameterization,
+                  model_name = params$model_name,
+                  parameterization = params$parameterization,
                   bound_settings = params$bound_setting,
                   iter = 1:n()) %>%
     dplyr::select(participant_id, model_name, parameterization, bound_settings, iter,
@@ -859,8 +912,8 @@ if (params$optimize) {
               sprintf("evolution_of_params_across_iters_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
                       task_version,
                       params$participant_id, # pid
-                      params$participant_id, # mode
-                      parameterization, # pmz
+                      params$model_name, # mode
+                      params$parameterization, # pmz
                       params$bound_setting, # bounds
                       optim_stats$BIC # BIC
               )
@@ -877,8 +930,8 @@ if (params$optimize) {
   optim_fun_val_per_iter <- 
     tibble::tibble(fun_val = optim_val) %>%
     dplyr::mutate(participant_id = params$participant_id,
-                  model_name = params$participant_id,
-                  parameterization = parameterization,
+                  model_name = params$model_name,
+                  parameterization = params$parameterization,
                   bound_settings = params$bound_setting,
                   iter = 1:n()) %>%
     dplyr::select(participant_id, model_name, parameterization, bound_settings, iter,
@@ -889,8 +942,8 @@ if (params$optimize) {
               sprintf("evolution_of_fun_val_across_iters_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
                       task_version,
                       params$participant_id, # pid
-                      params$participant_id, # mode
-                      parameterization, # pmz
+                      params$model_name, # mode
+                      params$parameterization, # pmz
                       params$bound_setting, # bounds
                       optim_stats$BIC # BIC
               )
