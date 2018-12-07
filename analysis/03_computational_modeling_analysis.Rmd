@@ -14,7 +14,7 @@ params:
   visualize: FALSE
   pars_from_file: FALSE
 title: '`r stringr::str_c(stringr::str_to_title(params$title), " - participant ", params$participant_id)`'
-subtitle: '`r stringr::str_c(stringr::str_to_upper(params$model_name), params$parameterization, stringr::str_c(params$bound_setting, " bounds"), sep = " - ")`'
+subtitle: '`r stringr::str_c(stringr::str_to_upper(params$model_name), params$parameterization, stringr::str_c(params$bound_setting, " bounds"), params$algorithm, sep = " - ")`'
 author: "Bram Zandbelt"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: 
@@ -112,6 +112,15 @@ task_version <- ifelse(stringr::str_detect(expt_standard_trials_filename, "defer
 - the paths to the _task performance files (`expt_standard_trials_filename`)_ containing the data from the cleaned standard trials from the experiment and the  _task version (`task_version`).
 
 ```{r Define some variables relevant for modeling}
+# Make sure that algorithm has correct upper and lower cases
+if (stringr::str_to_lower(params$algorithm) == "deoptimr") {
+  params$algorithm = "DEoptimR"
+} else if (stringr::str_to_lower(params$algorithm) == "deoptim") {
+  params$algorithm = "DEoptim"
+} else {
+  stop(sprintf("Invalid value for params$algorithm: '%s'. Must be either 'DEoptimR' or 'DEoptim'.", params$algorithm))
+}
+
 # Parameterization & framing levels
 parameterization <- 
   ifelse(params$parameterization == "one_condition",
@@ -267,6 +276,7 @@ if (params$optimize) {
   
   if (params$algorithm == "DEoptim") {
     # Optimization using bound constraints only
+    
     optim_out <- 
      DEoptim::DEoptim(fn = itchmodel::get_log_likelihood, # optimization function
                       lower = lowers, # lower bounds
@@ -282,17 +292,29 @@ if (params$optimize) {
                       parameterization = parameterization
                       )
     
-  } else if (params$algorithm == "DEoptimR") {
+    # Store optimization function value and parameter values in variables ------
+    optim_val_per_iter <- optim_out$member$bestvalit
+    par_vals_per_iter <- optim_out$member$bestmemit
+    n_iter <- optim_out$optim$iter
+    colnames(par_vals_per_iter) <- par_names
     
+    best_optim_val <- unname(optim_out$optim$bestval)
+    best_par_val <- unname(optim_out$optim$bestmem)
+    
+  } else if (params$algorithm == "DEoptimR") {
     # Optimization using bound constraints and nonlinear constraints
-    optim_val <- rep(NA, params$max_iter)
-    pars_per_iter <- matrix(nrow = params$max_iter, ncol = length(lowers))
-    colnames(pars_per_iter) <- par_names
+    # - Since DEoptimR::JDEoptim does not return iteration-wise optimization 
+    #   function values and parameter values, we implement this two step metho
+    
+    # Step 1 - Find reasonable starting parameter values (i.e. with likelihoods 
+    #   between 0.01 and 0.99 for all trials)
+    optim_val_per_iter <- rep(NA, params$max_iter)
+    par_vals_per_iter <- matrix(nrow = params$max_iter, ncol = length(lowers))
+    colnames(par_vals_per_iter) <- par_names
     
     this_optim_val <- 1e6
     iter <- 1
     
-    # This quick and dirty way of iterations ensures that we can retrieve information about the evolution of parameter values and function value during optimization, which is not otherwise provided by DEoptimR::JDEoptim
     while (this_optim_val >= 1e6) {
       # This ensures that reasonable starting parameter values (i.e. likelihoods between 0.01 and 0.99 for all trials)
       optim_out <-
@@ -314,11 +336,12 @@ if (params$optimize) {
                            )
       
       this_optim_val <- optim_out$value
-      optim_val[iter] <- optim_out$value
-      pars_per_iter[iter,] <- optim_out$par
+      optim_val_per_iter[iter] <- optim_out$value
+      par_vals_per_iter[iter,] <- optim_out$par
     }
     
-    # Do remaining iterations
+    # Step 2 - Optimize parameter values and store intermediate optimization
+    # function value and parameter values
     while (optim_out$convergence == 1 & iter <= (params$max_iter - 1)) {
       
       iter <- iter + 1
@@ -342,139 +365,227 @@ if (params$optimize) {
                           pcrit = c(.95, .05)
                         )
       
-      optim_val[iter] <- optim_out$value
-      pars_per_iter[iter,] <- optim_out$par
-      
-      free_par_vals_per_iter_tibb <- 
-        tibble::as.tibble(na.exclude(pars_per_iter)) %>% 
-        dplyr::mutate(iter = 1:n()) %>% 
-        dplyr::select(iter, as.character(free_par_names)) %>%
-        tidyr::gather(key = "key",
-                      value = "value",
-                      as.character(free_par_names),
-                      factor_key = TRUE)
+      optim_val_per_iter[iter] <- optim_out$value
+      par_vals_per_iter[iter,] <- optim_out$par
     }
+    
+    # Store optimization function value and parameter values in variables ------
+    best_optim_val <- optim_out$value
+    best_par_val <- optim_out$par
+    n_iter <- iter
   }
+  
+  # Convert optim_val_per_iter to tidy tibble for plotting purposes
+  optim_val_per_iter_tibb <- 
+    tibble::as.tibble(na.exclude(optim_val_per_iter))
+  colnames(optim_val_per_iter_tibb) <- "fun_val"
+  optim_val_per_iter_tibb <- 
+    optim_val_per_iter_tibb %>%
+    dplyr::mutate(iter = 1:n()) %>%
+    dplyr::select(iter, fun_val)
+  
+  # Convert par_vals_per_iter to tidy tibble for plotting  and saving purposes
+  par_vals_per_iter_tibb <- 
+    tibble::as.tibble(na.exclude(par_vals_per_iter)) %>% 
+    dplyr::mutate(iter = 1:n()) %>% 
+    dplyr::select(iter, as.character(par_names)) %>%
+    tidyr::drop_na()
+    
+  free_par_vals_per_iter_tibb <- 
+    par_vals_per_iter_tibb %>%
+    dplyr::select(iter, as.character(free_par_names)) %>%
+    tidyr::gather(key = "key",
+                  value = "value",
+                  as.character(free_par_names),
+                  factor_key = TRUE)
+  
 } else {
   # Do not optimize, but use parameter values loaded from disk or specified in params$par_vals
   
   if (params$pars_from_file) {
-    par_vals_file <-
+    
+    # Optimization output statistics: used to determined convergence
+    optim_out_stats_file <- 
       list.files(path = converged_models_dir,
-                 pattern = sprintf("^best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s.*.csv$",
+                 pattern = sprintf("^optim_stats_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC.*.csv$",
+                 params$participant_id, # pid
+                 params$model_name, # model
+                 params$parameterization, # pmz
+                 params$bound_setting, # bounds
+                 params$algorithm # algorithm
+                 )
+                 )
+    
+    assertthat::assert_that(length(optim_out_stats_file) == 1,
+                            msg = "Multiple optimization output files (optim_out_stats_file) detected; unclear which one to select.")
+    
+    
+    optim_out_stats <- 
+      readr::read_csv(file.path(converged_models_dir, optim_out_stats_file),
+                      col_types = readr::cols())
+    n_iter <- optim_out_stats$n_iter
+    
+    optim_val_per_iter_file <- 
+      list.files(path = converged_models_dir,
+                 pattern = sprintf("^evolution_of_fun_val_across_iters_task-.*_pid-%.3d_model-%s.*_pmz-%s_bounds-%s_algorithm-%s.*.csv$",
                                    params$participant_id, # pid
                                    params$model_name, # model
                                    params$parameterization, # pmz
-                                   params$bound_setting # bounds
+                                   params$bound_setting, # bounds
+                                   params$algorithm # algorithm
+                                   )
+                 )
+    
+    assertthat::assert_that(length(optim_val_per_iter_file) == 1,
+                            msg = "Multiple optimization value files (optim_val_per_iter_file) detected; unclear which one to select.")
+      
+    optim_val_per_iter_tibb <- 
+      readr::read_csv(file.path(converged_models_dir, optim_val_per_iter_file),
+                      col_types = readr::cols()) %>%
+      tidyr::drop_na() %>%
+      dplyr::select(iter, fun_val)
+    
+    best_optim_val <- 
+      optim_val_per_iter_tibb %>% 
+      dplyr::slice(n()) # Last entry is best value
+    
+    par_vals_per_iter_file <- 
+      list.files(path = converged_models_dir,
+                 pattern = sprintf("^evolution_of_params_across_iters_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC.*.csv$",
+                                   params$participant_id, # pid
+                                   params$model_name, # model
+                                   params$parameterization, # pmz
+                                   params$bound_setting, # bounds
+                                   params$algorithm # algorithm
+                                   )
+                 )
+    
+    assertthat::assert_that(length(par_vals_per_iter_file) == 1,
+                            msg = "Multiple parameter values files (par_vals_per_iter_file) detected; unclear which one to select.")
+    
+    par_vals_per_iter <- 
+      readr::read_csv(file.path(converged_models_dir, par_vals_per_iter_file),
+                      col_types = readr::cols()) %>%
+      dplyr::select(iter, as.character(par_names)) %>%
+      tidyr::drop_na()
+    
+    free_par_vals_per_iter_tibb <- 
+      par_vals_per_iter %>%
+      dplyr::select(iter, as.character(free_par_names)) %>%
+      tidyr::gather(key = "key",
+                    value = "value",
+                    as.character(free_par_names),
+                    factor_key = TRUE)
+    
+    best_par_val_file <-
+      list.files(path = converged_models_dir,
+                 pattern = sprintf("^best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s.*.csv$",
+                                   params$participant_id, # pid
+                                   params$model_name, # model
+                                   params$parameterization, # pmz
+                                   params$bound_setting, # bounds
+                                   params$algorithm # algorithm
                  )
       )
 
-    best_pars <-
-      readr::read_csv(file = file.path(converged_models_dir, par_vals_file),
+    assertthat::assert_that(length(best_par_val_file) == 1,
+                            msg = "Multiple best-fitting parameter values files (best_par_val_file) detected; unclear which one to select.")
+    
+    best_par_val <-
+      readr::read_csv(file = file.path(converged_models_dir, best_par_val_file),
                       col_types = readr::cols()) %>%
       dplyr::select(-participant_id, -model_name, -parameterization, -bound_settings) %>%
       as.double()
     
-    evol_fun_val_file <- 
-      list.files(path = converged_models_dir,
-                 pattern = sprintf("^evolution_of_fun_val_across_iters_task-.*_pid-%.3d_model-.*_pmz-%s_bounds-%s.*.csv$",
-                                   params$participant_id, # pid
-                                   # params$model_name, # model
-                                   params$parameterization, # pmz
-                                   params$bound_setting # bounds
-                                   )
-                 )
-      
-    evol_par_val_file <- 
-      list.files(path = converged_models_dir,
-                 pattern = sprintf("^evolution_of_params_across_iters_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC.*.csv$",
-                                   params$participant_id, # pid
-                                   params$model_name, # model
-                                   params$parameterization, # pmz
-                                   params$bound_setting # bounds
-                                   )
-                 )
-    
-    
+    # Further processing of par_vals_per_iter for use in optim_stat
+    par_vals_per_iter <- 
+      par_vals_per_iter %>%
+      dplyr::select(-iter)
+    colnames(par_vals_per_iter) <- 
+      stringr::str_c("par", seq(1,length(best_par_val)))
+    par_vals_per_iter <- 
+      par_vals_per_iter %>%
+      as.matrix()
     
   } else {
-    best_pars <- params$par_vals
-  }
     
-  # Compute log-likelihood
-  val <- 
-      itchmodel::get_log_likelihood(x = best_pars,
+    # Parameter values (N.B. not necessarily best-fitting, but for naming consistency)
+    best_par_val <- params$par_vals
+    
+    n_iter <- 1
+      
+    par_vals_per_iter_tibb <- 
+      best_par_val %>% 
+      tibble::as.tibble() %>% 
+      dplyr::mutate(key = par_names) %>% 
+      tidyr::spread(key = key, value = value) %>%
+      dplyr::mutate(iter = n_iter) %>%
+      dplyr::select(iter, dplyr::everything())
+    
+    free_par_vals_per_iter_tibb <- 
+      par_vals_per_iter_tibb %>%
+      dplyr::select(iter, as.character(free_par_names)) %>%
+      tidyr::gather(key = "key",
+                    value = "value",
+                    as.character(free_par_names),
+                    factor_key = TRUE)
+    
+    # Compute negative log-likelihood
+    negative_log_likelihood <- 
+      itchmodel::get_log_likelihood(x = best_par_val,
                                     data = obs_nested,
                                     model = params$model_name,
                                     parameterization = parameterization)
+    
+    optim_val_per_iter_tibb <- 
+      tibble::tibble(iter = 1,
+                     fun_val = negative_log_likelihood)
+    
+    best_optim_val <- negative_log_likelihood
+      
+  }
   
-  # Fake optimization statistics for the rest of the notebook code to work
+  # Make mock optim_out variable for the rest of the notebook code to work
   if (params$algorithm == "DEoptim") {
-    
-    
-    if (params$pars_from_file) {
-      
-    } else {
-      
-      optim_out <- 
-      list(member = list(bestvalit = val,
-                         bestmemit = matrix(best_pars, 
-                                            nrow = 1, 
-                                            dimnames = list(1,
-                                                            stringr::str_c("par", seq(1,8)))),
-                         bestmem = best_pars),
-           optim = list(bestval = val,
-                        iter = 1))
-      
-    }
-    
-    
-    
+    optim_out <- 
+    list(member = list(bestvalit = best_optim_val$fun_val,
+                       bestmemit = ifelse(params$pars_from_file,
+                                          par_vals_per_iter,
+                                          matrix(best_par_val, 
+                                                 nrow = 1, 
+                                                 dimnames = list(1,
+                                                                 stringr::str_c("par", seq(1,length(best_par_val))))
+                                                 )
+                                          ),
+                       bestmem = best_par_val),
+         optim = list(bestval = best_optim_val$fun_val,
+                      iter = ifelse(params$pars_from_file,
+                                    nrow(par_vals_per_iter),
+                                    1)
+                      )
+         )
   } else if (params$algorithm == "DEoptimR") {
     
     optim_out <- 
-      list(value = val,
-           par = best_pars,
-           iter = 1,
-           convergence = FALSE)
-    
-    iter <- 1
-    optim_val <- rep(NA, iter)
-    pars_per_iter <- matrix(nrow = iter, ncol = length(lowers))
-    colnames(pars_per_iter) <- par_names
-    
-    optim_val[1] <- optim_out$value
-    pars_per_iter[1,] <- optim_out$par
-    
-    free_par_vals_per_iter_tibb <- 
-        tibble::as.tibble(na.exclude(pars_per_iter)) %>% 
-        dplyr::mutate(iter = 1:n()) %>% 
-        dplyr::select(iter, as.character(free_par_names)) %>%
-        tidyr::gather(key = "key",
-                      value = "value",
-                      as.character(free_par_names),
-                      factor_key = TRUE)
+      list(value = best_optim_val$fun_val,
+           par = best_par_val,
+           iter = ifelse(params$pars_from_file,
+                         nrow(par_vals_per_iter),
+                         1),
+           convergence = ifelse(params$pars_from_file,
+                                optim_out_stats$converged,
+                                FALSE)
+           )
   }
 }
 
-# Save log-likelihood and best fitting parameter values to variables
-if (params$algorithm == "DEoptim") {
-  optim_val <- optim_out$member$bestvalit
-  pars_per_iter <- optim_out$member$bestmemit
-  best_pars <- unname(optim_out$optim$bestmem)
-} else if (params$algorithm == "DEoptimR") {
-  optim_val[iter] <- optim_out$value
-  pars_per_iter[iter,] <- optim_out$par
-  best_pars <- optim_out$par
-}
-
 # Store best-fitting parameter values per frame in a variable for later use
-best_pars_per_frame <- 
-    itchmodel::get_par_values(x = best_pars, 
+best_par_val_per_frame <- 
+    itchmodel::get_par_values(x = best_par_val, 
                               model = params$model_name, 
                               parameterization = parameterization)
-  if (!is.list(best_pars_per_frame)) {
-    best_pars_per_frame <- list(best_pars_per_frame)
+  if (!is.list(best_par_val_per_frame)) {
+    best_par_val_per_frame <- list(best_par_val_per_frame)
   }
 ```
 If `params$optimize` is set to `TRUE`, the model (`params$model_name`) with a certain parameterization (`params$parameterization`) is fit to the data. Depending on the model, only choices are fit (`DFT_C`) or both choices and response times are fit (`DDM`, `DFT_CRT`). Model parameter values are optimized by minimizing negative log-likelihood using a differential evolution algorithm with bounds and nonlinear constraints (`DEOptimR`) or with bounds only (`DEoptim`). The bounds are largely based on previous studies (see `itchmodel::get_par_bounds`) and ensure that parameters take sensible balues. The nonlinear constraints, which require that P(choosing LL) > 0.95 when SS amount equals €0 and P(choosing LL) < 0.05 0 when SS amount equals the LL amount, tend to help the algorithm to converge faster and result in more meaningful parameter values.
@@ -495,7 +606,8 @@ par_vals_output <-
   dplyr::mutate(participant_id = params$participant_id,
                 model_name = params$model_name,
                 parameterization = params$parameterization,
-                bound_settings = params$bound_setting) %>%
+                bound_settings = params$bound_setting,
+                algorithm = params$algorithm) %>%
   dplyr::select(participant_id, model_name, parameterization, bound_settings, dplyr::everything())
 
 # Retrieve observed data, predicted data, and intermediate modeling parameters
@@ -570,7 +682,7 @@ optim_stats <-
                            n_data_points = n_data_points)
 
 # n_iter in optim_out does not reflect the actual number of iterations, because we do iterations in a loop
-optim_stats$n_iter = iter
+optim_stats$n_iter = n_iter
 
 if (params$optimize) {
   print.data.frame(optim_stats)
@@ -582,7 +694,7 @@ if (params$optimize) {
 ```{r Print best-fitting parameter values}
 best_fitting_par_values <- 
   tibble(frame = factor(itchmodel::get_frames(parameterization = parameterization), ordered = TRUE),
-         params = itchmodel::get_par_values(x = best_pars, 
+         params = itchmodel::get_par_values(x = best_par_val, 
                                             model = params$model_name, 
                                             parameterization = parameterization)
          ) %>%
@@ -715,7 +827,6 @@ if (params$visualize & params$model_name %in% c("DDM")) {
     obs_and_prds$all_nested %>%
     dplyr::select(participant_id, frame, parameters)
   
-  
   stim_params_d_tmp <- 
     dplyr::left_join(stimuli, parameters, by = c("participant_id", "frame")) %>%
     dplyr::mutate(d = purrr::pmap(.l = list(frame = .$frame,
@@ -842,27 +953,29 @@ if (params$optimize) {
     dplyr::mutate(participant_id = params$participant_id,
                   model_name = params$model_name,
                   parameterization = params$parameterization,
-                  bound_settings = params$bound_setting) %>%
-    dplyr::select(participant_id, model_name, parameterization, bound_settings,
-                  dplyr::everything())
+                  bound_settings = params$bound_setting,
+                  algorithm = params$algorithm) %>%
+    dplyr::select(participant_id, model_name, parameterization, bound_settings, 
+                  algorithm, dplyr::everything())
   
   # Make file name human- and machine-readable, so that main results can be read from file name
-  par_vals_file <-
+  best_par_val_file <-
     file.path(data_output_dir,
-              sprintf("best_fitting_params_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+              sprintf("best_fitting_params_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC-%.0f.csv",
                       task_version,
                       params$participant_id, # pid
                       params$model_name, # mode
                       params$parameterization, # pmz
-                      params$bound_setting, # bounds
+                      params$bound_setting, # bounds,
+                      params$algorithm, # algorithm
                       optim_stats$BIC # BIC
                       )
               )
   
   readr::write_csv(par_vals_output,
-                   path = par_vals_file
+                   path = best_par_val_file
               )
-  print(sprintf("Best-fitting model parameters: %s", par_vals_file))
+  print(sprintf("Best-fitting model parameters: %s", best_par_val_file))
   
   # Write optimization statistics to disk --------------------------------------
   
@@ -871,19 +984,22 @@ if (params$optimize) {
   optim_stats_output <-
     optim_stats %>%
     dplyr::mutate(participant_id = params$participant_id,
-                  bound_settings = params$bound_setting) %>%
-    dplyr::select(participant_id, model, parameterization, bound_settings, dplyr::everything())
+                  bound_settings = params$bound_setting,
+                  algorithm = params$algorithm) %>%
+    dplyr::select(participant_id, model, parameterization, bound_settings, 
+                  algorithm, dplyr::everything())
   
   
   # Make file name human- and machine-readable, so that main results can be read from file name
   optim_stats_file <-
     file.path(data_output_dir,
-              sprintf("optim_stats_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+              sprintf("optim_stats_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC-%.0f.csv",
                       task_version,
                       params$participant_id, # pid
                       params$model_name, # mode
                       params$parameterization, # pmz
                       params$bound_setting, # bounds
+                      params$algorithm, # algorithm
                       optim_stats$BIC # BIC
                       )
               )
@@ -898,23 +1014,25 @@ if (params$optimize) {
   # Write evolution of parameter value across iterations to disk -----------------
 
   par_vals_per_iter <- 
-    tibble::as.tibble(pars_per_iter) %>% 
+    tibble::as.tibble(par_vals_per_iter) %>% 
     dplyr::mutate(participant_id = params$participant_id,
                   model_name = params$model_name,
                   parameterization = params$parameterization,
                   bound_settings = params$bound_setting,
+                  algorithm = params$algorithm,
                   iter = 1:n()) %>%
-    dplyr::select(participant_id, model_name, parameterization, bound_settings, iter,
-                  dplyr::everything())
+    dplyr::select(participant_id, model_name, parameterization, bound_settings, 
+                  algorithm, iter, dplyr::everything())
     
   par_vals_per_iter_file <-
     file.path(data_output_dir,
-              sprintf("evolution_of_params_across_iters_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+              sprintf("evolution_of_params_across_iters_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC-%.0f.csv",
                       task_version,
                       params$participant_id, # pid
                       params$model_name, # mode
                       params$parameterization, # pmz
                       params$bound_setting, # bounds
+                      params$algorithm, # algorithm
                       optim_stats$BIC # BIC
               )
     )
@@ -928,23 +1046,25 @@ if (params$optimize) {
 # Write evolution of optimization function value across iterations to disk -----
 
   optim_fun_val_per_iter <- 
-    tibble::tibble(fun_val = optim_val) %>%
+    tibble::tibble(fun_val = optim_val_per_iter) %>%
     dplyr::mutate(participant_id = params$participant_id,
                   model_name = params$model_name,
                   parameterization = params$parameterization,
                   bound_settings = params$bound_setting,
+                  algorithm = params$algorithm,
                   iter = 1:n()) %>%
-    dplyr::select(participant_id, model_name, parameterization, bound_settings, iter,
-                  dplyr::everything())
+    dplyr::select(participant_id, model_name, parameterization, bound_settings, 
+                  algorithm, iter, dplyr::everything())
     
   optim_fun_val_per_iter_file <-
     file.path(data_output_dir,
-              sprintf("evolution_of_fun_val_across_iters_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+              sprintf("evolution_of_fun_val_across_iters_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC-%.0f.csv",
                       task_version,
                       params$participant_id, # pid
                       params$model_name, # mode
                       params$parameterization, # pmz
                       params$bound_setting, # bounds
+                      params$algorithm, # algorithm
                       optim_stats$BIC # BIC
               )
     )
@@ -964,19 +1084,22 @@ if (params$optimize) {
     dplyr::mutate(participant_id = params$participant_id,
                   bound_settings = params$bound_setting,
                   model = params$model_name,
-                  parameterization = params$parameterization) %>%
-    dplyr::select(participant_id, model, parameterization, bound_settings, dplyr::everything())
+                  parameterization = params$parameterization,
+                  algorithm = params$algorithm) %>%
+    dplyr::select(participant_id, model, parameterization, bound_settings, 
+                  algorithm, dplyr::everything())
   
   
   # Make file name human- and machine-readable, so that main results can be read from file name
   prd_ip_output_file <-
     file.path(data_output_dir,
-              sprintf("predicted_indifference_points_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+              sprintf("predicted_indifference_points_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC-%.0f.csv",
                       task_version,
                       params$participant_id, # pid
                       params$model_name, # mode
                       params$parameterization, # pmz
                       params$bound_setting, # bounds
+                      params$algorithm, # algorithm
                       optim_stats$BIC # BIC
                       )
               )
@@ -999,19 +1122,21 @@ if (params$optimize) {
                   bound_settings = params$bound_setting,
                   model = params$model_name,
                   parameterization = params$parameterization,
+                  algorithm = params$algorithm,
                   norm_auc = auc / (43.52 * 128)) %>%
-    dplyr::select(participant_id, model, parameterization, bound_settings, dplyr::everything())
-  
+    dplyr::select(participant_id, model, parameterization, bound_settings, 
+                  algorithm, dplyr::everything())
   
   # Make file name human- and machine-readable, so that main results can be read from file name
   auc_output_file <-
     file.path(data_output_dir,
-              sprintf("auc_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_BIC-%.0f.csv",
+              sprintf("auc_task-%s_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC-%.0f.csv",
                       task_version,
                       params$participant_id, # pid
                       params$model_name, # mode
                       params$parameterization, # pmz
                       params$bound_setting, # bounds
+                      params$algorithm, # algorithm
                       optim_stats$BIC # BIC
                       )
               )
