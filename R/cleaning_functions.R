@@ -31,6 +31,10 @@ get_col_types <- function(file_type){
                          readr::col_factor(levels = c("standard",
                                                       "wide"),
                                            include_na = TRUE),
+                       algorithm =
+                         readr::col_factor(levels = c("DEoptimR",
+                                                      "DEoptim"),
+                                           include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("neutral",
                                                       "defer",
@@ -57,6 +61,10 @@ get_col_types <- function(file_type){
                          readr::col_factor(levels = c("standard",
                                                       "wide"),
                                            include_na = TRUE),
+                       algorithm =
+                         readr::col_factor(levels = c("DEoptimR",
+                                                      "DEoptim"),
+                                           include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("delay",
                                                       "date"),
@@ -66,23 +74,27 @@ get_col_types <- function(file_type){
                          readr::col_double()),
     best_fitting_params =
       readr::cols(participant_id =
-                         readr::col_integer(),
-                       model_name =
-                         readr::col_factor(levels = c("DDM",
-                                                      "DFT_C"),
-                                                      include_na = TRUE),
-                       parameterization =
-                         readr::col_factor(levels = c("one_condition",
-                                                      "time_scaling",
-                                                      "time_scaling_t0",
-                                                      "value_scaling",
-                                                      "value_scaling_t0"),
-                                           include_na = TRUE),
-                       bound_settings =
-                         readr::col_factor(levels = c("standard",
-                                                      "wide"),
-                                           include_na = TRUE),
-                       .default = readr::col_double()),
+                    readr::col_integer(),
+                 model_name =
+                   readr::col_factor(levels = c("DDM",
+                                                "DFT_C"),
+                                                include_na = TRUE),
+                 parameterization =
+                   readr::col_factor(levels = c("one_condition",
+                                                "time_scaling",
+                                                "time_scaling_t0",
+                                                "value_scaling",
+                                                "value_scaling_t0"),
+                                     include_na = TRUE),
+                 bound_settings =
+                   readr::col_factor(levels = c("standard",
+                                                "wide"),
+                                     include_na = TRUE),
+                 algorithm =
+                   readr::col_factor(levels = c("DEoptimR",
+                                                "DEoptim"),
+                                     include_na = TRUE),
+                 .default = readr::col_double()),
     calibration_indifference_points =
       readr::cols_only(subject_ix = readr::col_integer(),
                        t_l = readr::col_integer(),
@@ -163,6 +175,10 @@ get_col_types <- function(file_type){
                          readr::col_factor(levels = c("standard",
                                                       "wide"),
                                            include_na = TRUE),
+                       algorithm =
+                         readr::col_factor(levels = c("DEoptimR",
+                                                      "DEoptim"),
+                                           include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("neutral",
                                                       "defer",
@@ -196,6 +212,10 @@ get_col_types <- function(file_type){
                        bound_settings =
                          readr::col_factor(levels = c("standard",
                                                       "wide"),
+                                           include_na = TRUE),
+                       algorithm =
+                         readr::col_factor(levels = c("DEoptimR",
+                                                      "DEoptim"),
                                            include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("delay",
@@ -232,6 +252,10 @@ get_col_types <- function(file_type){
                          readr::col_factor(levels = c("standard",
                                                       "wide"),
                                            include_na = TRUE),
+                       algorithm =
+                         readr::col_factor(levels = c("DEoptimR",
+                                                      "DEoptim"),
+                                           include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("neutral",
                                                       "defer",
@@ -261,6 +285,10 @@ get_col_types <- function(file_type){
                        bound_settings =
                          readr::col_factor(levels = c("standard",
                                                       "wide"),
+                                           include_na = TRUE),
+                       algorithm =
+                         readr::col_factor(levels = c("DEoptimR",
+                                                      "DEoptim"),
                                            include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("delay",
