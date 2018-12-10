@@ -112,15 +112,6 @@ task_version <- ifelse(stringr::str_detect(expt_standard_trials_filename, "defer
 - the paths to the _task performance files (`expt_standard_trials_filename`)_ containing the data from the cleaned standard trials from the experiment and the  _task version (`task_version`).
 
 ```{r Define some variables relevant for modeling}
-# Make sure that algorithm has correct upper and lower cases
-if (stringr::str_to_lower(params$algorithm) == "deoptimr") {
-  params$algorithm = "DEoptimR"
-} else if (stringr::str_to_lower(params$algorithm) == "deoptim") {
-  params$algorithm = "DEoptim"
-} else {
-  stop(sprintf("Invalid value for params$algorithm: '%s'. Must be either 'DEoptimR' or 'DEoptim'.", params$algorithm))
-}
-
 # Parameterization & framing levels
 parameterization <- 
   ifelse(params$parameterization == "one_condition",
@@ -494,7 +485,7 @@ if (params$optimize) {
     best_par_val <-
       readr::read_csv(file = file.path(converged_models_dir, best_par_val_file),
                       col_types = readr::cols()) %>%
-      dplyr::select(-participant_id, -model_name, -parameterization, -bound_settings) %>%
+      dplyr::select(-participant_id, -model_name, -parameterization, -bound_settings, -algorithm) %>%
       as.double()
     
     # Further processing of par_vals_per_iter for use in optim_stat
