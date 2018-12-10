@@ -820,7 +820,7 @@ if (params$visualize & params$model_name %in% c("DDM")) {
   
   stim_params_d_tmp <- 
     dplyr::left_join(stimuli, parameters, by = c("participant_id", "frame")) %>%
-    dplyr::mutate(d = purrr::pmap(.l = list(frame = .$frame,
+    dplyr::mutate(d = purrr::pmap(.l = list(frame = as.character(.$frame),
                                             parameters = .$parameters,
                                             stimuli = .$stimuli),
                                   .f = itchmodel::compute_drift_rate,
