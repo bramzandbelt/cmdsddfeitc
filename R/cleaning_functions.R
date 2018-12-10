@@ -443,7 +443,7 @@ tidy_obs_prd_choice_rt <- function(return_var="obs", obs, model="", pmz="", para
     # Best-fitting parameters, per frame
     params_nested <-
       parameters %>%
-      dplyr::select(-model_name, -parameterization, -bound_settings)
+      dplyr::select(-model_name, -parameterization, -bound_settings, -algorithm)
 
     par_names <-
       colnames(params_nested %>% dplyr::select(-participant_id))
@@ -492,13 +492,13 @@ tidy_obs_prd_choice_rt <- function(return_var="obs", obs, model="", pmz="", para
                                                stimuli = .$stimuli,
                                                frame = as.character(.$frame)),
                                      .f = itchmodel::compute_transformation_diffs,
-                                     parameterization = parameterization,
+                                     parameterization = pmz,
                                      variable = "du"),
                     dp = purrr::pmap(.l = list(parameters = .$parameters,
                                                stimuli = .$stimuli,
                                                frame = as.character(.$frame)),
                                      .f = itchmodel::compute_transformation_diffs,
-                                     parameterization = parameterization,
+                                     parameterization = pmz,
                                      variable = "dp")) %>%
       dplyr::mutate(d = purrr::pmap(.l = list(parameters = .$parameters,
                                               stimuli = .$stimuli,
