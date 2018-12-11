@@ -538,13 +538,26 @@ tidy_obs_prd_choice_rt <- function(return_var="obs", obs, model="", pmz="", para
         prd_nested %>%
         dplyr::mutate(p_ll = purrr::pmap(.l = list(d = .$d,
                                                    parameters = .$parameters),
-                                         .f = function(d, s, parameters) {
+                                         .f = function(d, parameters) {
                                            itchmodel::db_bin_choice_prob(d = d,
                                                                          s = rep(1,length(d)),
                                                                          a = rep(as.double(parameters["a"]), length(d)),
                                                                          z = rep(0,length(d)))}
-        )
-        )
+                                         )
+                      # med_rt = purrr::pmap_dbl(.l = list(d = .$d,
+                      #                                    parameters = .$parameters),
+                      #                          .f = function(d, parameters) {
+                      #                            rtdists::qdiffusion(v = d,
+                      #                                                a = as.double(parameters["a"]),
+                      #                                                t0 = (as.double(parameters["t0"])),
+                      #                                                z = as.double(parameters["a"]) * 0.5,
+                      #                                                response = "upper", # For typical values, predictions for median RTs were found not to differ between "lower" and "upper" responses, hence only "upper"
+                      #                                                p = rep(0.5, length(d)),
+                      #                                                scale_p = TRUE
+                      #                                                )
+                      #                            }
+                      #                          )
+                      )
     }
   }
 
