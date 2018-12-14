@@ -533,7 +533,7 @@ tidy_obs_prd_choice_rt <- function(return_var="obs", obs, model="", pmz="", para
         )
 
 
-    } else if (parameters$model_name == "DDM") {
+    } else if (model == "DDM") {
       prd_nested <-
         prd_nested %>%
         dplyr::mutate(p_ll = purrr::pmap(.l = list(d = .$d,
