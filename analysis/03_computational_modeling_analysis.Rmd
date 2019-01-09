@@ -48,7 +48,7 @@ The tasks that can be fit are:
 
 The models the can be used to fit the task performance are:
 
-- Drift Diffusion Model (`DDM`, choices and response times;  
+- Drift Diffusion Model (`DDM`, choices and response times);  
 - Decision Field Theory (`DFT_C`, choices only; `DFT_CRT`, choices and response times),
 
 The parameterizations that can used to account for the framing effects are:
@@ -64,13 +64,13 @@ This notebook takes as input a participant's cleaned and preprocessed experiment
 
 # Preliminaries
 
-Before reading the data the following is specified:
+Before reading the data, the following is specified:
 
 ```{r Define notebook name, based on YAML header}
 notebook_name <- 
    stringr::str_to_lower(stringr::str_replace_all(params$title, " ", "_"))
 ```
-- the _name of the notebook (`notebook_name`)_, which is used to save output to a notebook-specific directory
+- the _name of the notebook (`notebook_name`)_, which is used to save output (e.g. best-fitting parameters, a visual report) to a notebook-specific directory;
 
 ```{r Define relevant directories for reading and writing data and create whenever needed}
 # Raw trial log files are read from here
@@ -158,8 +158,6 @@ free_par_bounds_tibb <-
 
 ```
 - several variables relevant for modeling, including the _parameterization (`_parameterization`)_,  _framing levels (`framing_levels`)_, _parameter bounds (`lowers`, `uppers`)_, among others.
-
-
 
 ```{r Determine indifference points based on model fits}
 # Determine indifference points, given LL amount, LL delay, and best-fitting parameters
@@ -438,7 +436,7 @@ if (params$optimize) {
     
     best_optim_val <- 
       optim_val_per_iter_tibb %>% 
-      dplyr::slice(n()) %>% # Last entry is best value
+      dplyr::slice(n_iter) %>% # Last entry is best value
       dplyr::pull(fun_val)
     
     par_vals_per_iter_file <- 
@@ -584,7 +582,7 @@ best_par_val_per_frame <-
     best_par_val_per_frame <- list(best_par_val_per_frame)
   }
 ```
-If `params$optimize` is set to `TRUE`, the model (`params$model_name`) with a certain parameterization (`params$parameterization`) is fit to the data. Depending on the model, only choices are fit (`DFT_C`) or both choices and response times are fit (`DDM`, `DFT_CRT`). Model parameter values are optimized by minimizing negative log-likelihood using a differential evolution algorithm with bounds and nonlinear constraints (`DEOptimR`) or with bounds only (`DEoptim`). The bounds are largely based on previous studies (see `itchmodel::get_par_bounds`) and ensure that parameters take sensible balues. The nonlinear constraints, which require that P(choosing LL) > 0.95 when SS amount equals €0 and P(choosing LL) < 0.05 0 when SS amount equals the LL amount, tend to help the algorithm to converge faster and result in more meaningful parameter values.
+If `params$optimize` is set to `TRUE`, the model (`params$model_name`) with a certain parameterization (`params$parameterization`) is fit to the data. Depending on the model, only choices are fit (`DFT_C`) or both choices and response times are fit (`DDM`, `DFT_CRT`). Model parameter values are optimized by minimizing negative log-likelihood using a differential evolution algorithm with bounds and nonlinear constraints (`DEOptimR`) or with bounds only (`DEoptim`). The bounds are largely based on previous studies (see `itchmodel::get_par_bounds`) and ensure that parameters take sensible values. The nonlinear constraints (`DEoptimR` only) ensure that  that P(choosing LL) > 0.95 when SS amount equals €0 and P(choosing LL) < 0.05 0 when SS amount equals the LL amount (i.e. resulting in more meaningful parameter values).
 
 Alternatively, if `params$optimize` is set to `FALSE`, the parameter values specified in `params$par_vals` are used to compute the log-likelihood. This is useful if you want to test whether other parameter value combinations provide a better fit. 
 
@@ -595,7 +593,7 @@ After fitting, the predicted data are prepared for plotting.
 ```{r Make model predictions based on best-fitting parameters}
 # Put parameter values in right format for tidying
 if (params$algorithm == "DEoptim") {
-  par_vals <- optim_out$optim$bestmem
+  par_vals <- optim_out$member$bestmem
   names(par_vals) <- par_names
 } else if (params$algorithm == "DEoptimR") {
   par_vals <- optim_out$par
@@ -620,26 +618,6 @@ obs_and_prds <-
                                       parameters = par_vals_output)
 ```
 
-
-
-## Prepare predicted data for plotting
-
-```{r Prepare predicted data for plotting}
-if (params$visualize) {
-  prds_for_plot <- 
-    obs_and_prds$prd_nested %>% 
-    dplyr::select(frame, stimuli, p_ll) %>% 
-    tidyr::unnest() %>%
-    dplyr::mutate(t_l = factor(t_l, 
-                               levels = c(2,4,8,16,32,64,128),
-                               labels = c("2 days", "4 days", "8 days", "16 days",
-                                          "32 days", "64 days", "128 days"),
-                               ordered = TRUE))
-  
-  prds_for_plot
-}
-```
-
 ## Determine indifference points and area under the curve based on model fits
 
 ```{r Determine area under the curve based on model fits}
@@ -656,9 +634,27 @@ prds <-
                                   method = "trapezoid"))
 ```
 
-## Select indifference point data and area-under-the-curve data for plotting and writing to disk
+## Tidy choice probability data for plotting
 
-```{r Select indifference point data for plotting and writing to disk}
+```{r Tidy choice probability data for plotting}
+if (params$visualize) {
+  prd_pll_for_plot <- 
+    obs_and_prds$prd_nested %>% 
+    dplyr::select(frame, stimuli, p_ll) %>% 
+    tidyr::unnest() %>%
+    dplyr::mutate(t_l = factor(t_l, 
+                               levels = c(2,4,8,16,32,64,128),
+                               labels = c("2 days", "4 days", "8 days", "16 days",
+                                          "32 days", "64 days", "128 days"),
+                               ordered = TRUE))
+  
+  prd_pll_for_plot
+}
+```
+
+## Tidy indifference point data and area-under-the-curve data for plotting and writing to disk
+
+```{r Tidy indifference point data for plotting and writing to disk}
 prd_ip_data <- 
   prds %>%
   dplyr::select(frame, ip) %>%
@@ -668,166 +664,9 @@ prd_ip_data <-
 prd_ip_data
 ```
 
-# Visualize data
+## Tidy response time data for plotting
 
-## Optimization process
-
-### Optimization descriptives
-
-```{r Summarize optimization statistics}
-optim_stats <- 
-  itchmodel::get_fit_stats(optim_output = optim_out, 
-                           algorithm = params$algorithm,
-                           model = params$model_name, 
-                           parameterization = parameterization, 
-                           n_data_points = n_data_points,
-                           max_iter = params$max_iter)
-
-# n_iter in optim_out does not reflect the actual number of iterations, because we do iterations in a loop
-optim_stats$n_iter = n_iter
-
-optim_stats
-```
-
-### Best-fitting parameters values and lower and upper bounds
-
-```{r Print best-fitting parameter values}
-best_fitting_par_values <- 
-  tibble(frame = factor(itchmodel::get_frames(parameterization = parameterization), ordered = TRUE),
-         params = itchmodel::get_par_values(x = best_par_val, 
-                                            model = params$model_name, 
-                                            parameterization = parameterization)
-         ) %>%
-  dplyr::mutate(r = purrr::map(params, ~ data.frame(t(.)))) %>%
-  tidyr::unnest(r) %>%
-  dplyr::select(-params)
-
-best_fitting_par_values
-free_par_bounds_tibb
-```
-
-### Evolution of parameter values over iterations
-How did values of free model parameters evolve over iterations?
-Did the model optimzation routine converge?
-Do best-fitting parameter values end up at bounds
-
-
-```{r Evolution of parameter values over iterations, out.width="100%"}
-if (params$visualize) {
- h_line_data <- 
-    free_par_bounds_tibb %>%
-    tidyr::gather(key = "key", value = "value", -bound) %>% 
-    tidyr::spread(key = bound, value = value)
- 
- ggplot2::ggplot(free_par_vals_per_iter_tibb,
-                 ggplot2::aes(x = iter,
-                              y = value)) +
-   ggplot2::facet_wrap("key",
-                       scales = "free_y") +
-   ggplot2::geom_hline(data = h_line_data,
-                       ggplot2::aes(yintercept = lower),
-                       color = "red") +
-   ggplot2::geom_hline(data = h_line_data,
-                       ggplot2::aes(yintercept = upper),
-                       color = "red") +
-   ggplot2::geom_step() +
-   ggplot2::scale_x_continuous(name = "Iteration") +
-   ggplot2::scale_y_continuous(name = "Parameter value") +
-   cmdsddfeitc::theme_cmfsddfeitc() 
-}
-```
-
-
-```{r Evolution of optimization function value over iterations, out.width="100%"}
-if (params$visualize) {
-  ggplot2::ggplot(optim_val_per_iter_tibb,
-                  ggplot2::aes(x = iter,
-                               y = fun_val)) +
-    ggplot2::geom_step() + 
-    ggplot2::scale_x_continuous(name = "Iteration") +
-    ggplot2::scale_y_continuous(name = "Optimization function value",
-                                limits = c(1e1,1e7),
-                                trans="log10") +
-    cmdsddfeitc::theme_cmfsddfeitc() 
-}
-
-```
-
-## Observed vs. predicted data
-
-### Probability of choosing the LL option
-
-This visualization highlights differences between frames, if any
-```{r Model fit to the data, out.width="100%"}
-if (params$visualize) {
-  ggplot2::ggplot(data = prds_for_plot,
-                  ggplot2::aes(x = m_s,
-                               y = p_ll, 
-                               group = frame,
-                               color = frame)) +
-    ggplot2::facet_wrap("t_l") +
-    ggplot2::geom_line() + 
-    ggplot2::geom_point(data = obs_for_plotting,
-                        ggplot2::aes(x = m_s,
-                                     y = p_ll,
-                                     color = frame,
-                                     shape = m_s_cat),
-                        stroke = 1.5) +
-    ggplot2::scale_x_continuous(name = "Smaller sooner amount (€)",
-                                breaks = c(0, 20, 40),
-                                limits = c(0,43.52)
-                                ) +
-    ggplot2::scale_y_continuous(name = "P(choosing LL)",
-                                breaks = seq(0,1,0.5),
-                                limits = c(0,1)) +
-    ggplot2::scale_shape_manual(name = "SS amount category",
-                                values = c(6,1,2)) +
-    ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
-    cmdsddfeitc::theme_cmfsddfeitc() + 
-    ggplot2::theme(legend.position = "right",
-                   legend.direction = "vertical", 
-                   legend.box = "vertical")
-}
-```
-
-This visualization allows for checking model fit more precisely
-```{r Model fit to the data as t_l by frame grid, , out.width="100%"}
-if (params$visualize) {
-  ggplot2::ggplot(data = prds_for_plot,
-                  ggplot2::aes(x = m_s,
-                               y = p_ll, 
-                               color = frame)) +
-    # ggplot2::facet_grid(t_l ~ frame) +
-    ggplot2::facet_grid(frame ~ t_l) +
-    ggplot2::geom_line() + 
-    ggplot2::geom_point(data = obs_for_plotting,
-                        ggplot2::aes(x = m_s,
-                                     y = p_ll,
-                                     color = frame,
-                                     shape = m_s_cat),
-                        stroke = 1) +
-    ggplot2::scale_x_continuous(name = "Smaller sooner amount (€)",
-                                breaks = c(0, 20, 40),
-                                limits = c(0,43.52)
-                                ) +
-    ggplot2::scale_y_continuous(name = "P(choosing LL)",
-                                breaks = seq(0,1,0.5),
-                                limits = c(0,1)) +
-    ggplot2::scale_shape_manual(name = "SS amount category",
-                                values = c(6,1,2)) +
-    ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
-    cmdsddfeitc::theme_cmfsddfeitc() + 
-    ggplot2::theme(legend.position = "bottom",
-                   legend.direction = "vertical", 
-                   legend.box = "horizontal")
-    # ggplot2::theme(legend.position = "right")
-}
-```
-
-### Median response times
-
-```{r Observed and predicted median response times, out.width="100%"}
-
+```{r Tidy response time data for plotting}
 if (params$visualize & params$model_name %in% c("DDM", "DFT_CRT")) {
 
   stimuli <- 
@@ -948,10 +787,175 @@ if (params$visualize & params$model_name %in% c("DDM", "DFT_CRT")) {
   rt_data_plot <- dplyr::bind_rows(obs_summary_stats, stim_params_d)
   
   
-  my_obs <- rt_data_plot %>% dplyr::filter(type == "obs") %>% dplyr::ungroup()
-  my_prds <- rt_data_plot %>% dplyr::filter(type == "prd") %>% dplyr::ungroup()
-  
-  ggplot2::ggplot(my_obs,
+  obs_mdrt_for_plot <- rt_data_plot %>% dplyr::filter(type == "obs") %>% dplyr::ungroup()
+  prd_mdrt_for_plot <- rt_data_plot %>% dplyr::filter(type == "prd") %>% dplyr::ungroup()
+
+}
+```
+
+# Visualize data
+
+## Optimization process
+
+### Optimization descriptives
+
+```{r Summarize optimization statistics}
+optim_stats <- 
+  itchmodel::get_fit_stats(optim_output = optim_out, 
+                           algorithm = params$algorithm,
+                           model = params$model_name, 
+                           parameterization = parameterization, 
+                           n_data_points = n_data_points,
+                           max_iter = params$max_iter)
+
+# n_iter in optim_out does not reflect the actual number of iterations, because we do iterations in a loop
+optim_stats$n_iter = n_iter
+
+optim_stats
+```
+
+### Best-fitting parameters values and lower and upper bounds
+
+```{r Print best-fitting parameter values}
+best_fitting_par_values <- 
+  tibble(frame = factor(itchmodel::get_frames(parameterization = parameterization), ordered = TRUE),
+         params = itchmodel::get_par_values(x = best_par_val, 
+                                            model = params$model_name, 
+                                            parameterization = parameterization)
+         ) %>%
+  dplyr::mutate(r = purrr::map(params, ~ data.frame(t(.)))) %>%
+  tidyr::unnest(r) %>%
+  dplyr::select(-params)
+
+best_fitting_par_values
+free_par_bounds_tibb
+```
+
+### Evolution of parameter values over iterations
+How did values of free model parameters evolve over iterations?
+Did the model optimzation routine converge?
+Do best-fitting parameter values end up at bounds
+
+
+```{r Evolution of parameter values over iterations, out.width="100%"}
+if (params$visualize) {
+ h_line_data <- 
+    free_par_bounds_tibb %>%
+    tidyr::gather(key = "key", value = "value", -bound) %>% 
+    tidyr::spread(key = bound, value = value)
+ 
+ ggplot2::ggplot(free_par_vals_per_iter_tibb,
+                 ggplot2::aes(x = iter,
+                              y = value)) +
+   ggplot2::facet_wrap("key",
+                       scales = "free_y") +
+   ggplot2::geom_hline(data = h_line_data,
+                       ggplot2::aes(yintercept = lower),
+                       color = "red") +
+   ggplot2::geom_hline(data = h_line_data,
+                       ggplot2::aes(yintercept = upper),
+                       color = "red") +
+   ggplot2::geom_step() +
+   ggplot2::scale_x_continuous(name = "Iteration") +
+   ggplot2::scale_y_continuous(name = "Parameter value") +
+   cmdsddfeitc::theme_cmfsddfeitc() 
+}
+```
+
+
+```{r Evolution of optimization function value over iterations, out.width="100%"}
+if (params$visualize) {
+  ggplot2::ggplot(optim_val_per_iter_tibb %>% dplyr::slice(1:n_iter),
+                  ggplot2::aes(x = iter,
+                               y = fun_val)) +
+    ggplot2::geom_step() + 
+    ggplot2::scale_x_continuous(name = "Iteration") +
+    ggplot2::scale_y_continuous(name = "Optimization function value",
+                                limits = c(1e1,1e7),
+                                trans="log10") +
+    cmdsddfeitc::theme_cmfsddfeitc() 
+}
+
+```
+
+## Observed vs. predicted data
+
+### Probability of choosing the LL option
+
+This visualization highlights differences between frames, if any
+```{r Model fit to the data, out.width="100%"}
+if (params$visualize) {
+  ggplot2::ggplot(data = prd_pll_for_plot,
+                  ggplot2::aes(x = m_s,
+                               y = p_ll, 
+                               group = frame,
+                               color = frame)) +
+    ggplot2::facet_wrap("t_l") +
+    ggplot2::geom_line() + 
+    ggplot2::geom_point(data = obs_for_plotting,
+                        ggplot2::aes(x = m_s,
+                                     y = p_ll,
+                                     color = frame,
+                                     shape = m_s_cat),
+                        stroke = 1.5) +
+    ggplot2::scale_x_continuous(name = "Smaller sooner amount (€)",
+                                breaks = c(0, 20, 40),
+                                limits = c(0,43.52)
+                                ) +
+    ggplot2::scale_y_continuous(name = "P(choosing LL)",
+                                breaks = seq(0,1,0.5),
+                                limits = c(0,1)) +
+    ggplot2::scale_shape_manual(name = "SS amount category",
+                                values = c(6,1,2)) +
+    ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
+    cmdsddfeitc::theme_cmfsddfeitc() + 
+    ggplot2::theme(legend.position = "right",
+                   legend.direction = "vertical", 
+                   legend.box = "vertical")
+}
+```
+
+This visualization allows for checking model fit more precisely
+```{r Model fit to the data as t_l by frame grid, , out.width="100%"}
+if (params$visualize) {
+  ggplot2::ggplot(data = prd_pll_for_plot,
+                  ggplot2::aes(x = m_s,
+                               y = p_ll, 
+                               color = frame)) +
+    # ggplot2::facet_grid(t_l ~ frame) +
+    ggplot2::facet_grid(frame ~ t_l) +
+    ggplot2::geom_line() + 
+    ggplot2::geom_point(data = obs_for_plotting,
+                        ggplot2::aes(x = m_s,
+                                     y = p_ll,
+                                     color = frame,
+                                     shape = m_s_cat),
+                        stroke = 1) +
+    ggplot2::scale_x_continuous(name = "Smaller sooner amount (€)",
+                                breaks = c(0, 20, 40),
+                                limits = c(0,43.52)
+                                ) +
+    ggplot2::scale_y_continuous(name = "P(choosing LL)",
+                                breaks = seq(0,1,0.5),
+                                limits = c(0,1)) +
+    ggplot2::scale_shape_manual(name = "SS amount category",
+                                values = c(6,1,2)) +
+    ggplot2::scale_color_manual(values = cmdsddfeitc::get_aes_values("color", parameterization)) +
+    cmdsddfeitc::theme_cmfsddfeitc() + 
+    ggplot2::theme(legend.position = "bottom",
+                   legend.direction = "vertical", 
+                   legend.box = "horizontal")
+    # ggplot2::theme(legend.position = "right")
+}
+```
+
+### Median response times
+
+```{r Observed and predicted median response times, out.width="100%"}
+
+if (params$visualize & params$model_name %in% c("DDM", "DFT_CRT")) {
+
+  ggplot2::ggplot(obs_mdrt_for_plot,
                   ggplot2::aes(x = t_l,
                                y = med_rt,
                                color = m_s_cat)
@@ -960,7 +964,7 @@ if (params$visualize & params$model_name %in% c("DDM", "DFT_CRT")) {
     
     # Geoms
     ggplot2::geom_point(shape = 21) + 
-    ggplot2::geom_line(data = my_prds,
+    ggplot2::geom_line(data = prd_mdrt_for_plot,
                        ggplot2::aes(group = m_s_cat)) +
     # Scales
     ggplot2::scale_x_discrete(name = "Delay (days)") +
@@ -970,18 +974,8 @@ if (params$visualize & params$model_name %in% c("DDM", "DFT_CRT")) {
     # Theme
     cmdsddfeitc::theme_cmfsddfeitc() + 
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90))
-  
-  
 }
 ```
-
-
-
-```{r}
-
-
-```
-
 
 ## Predicted indifference point by delay curves
 
@@ -1005,7 +999,7 @@ if (params$visualize) {
 
 # Write data
 
-The directory in which the computational modeling data will be written depends on whether the model optimization procedure converged (`optimization_converged`) or not (`optimization_nonconverged`).
+The directory in which the computational modeling data will be written depends on whether the model optimization procedure converged (`optimization_converged`) or not (`optimization_nonconverged`). Visualizations are not written sepately to disk (only as part of the notebook knitted to an HTML file).
 
 ```{r Write data to disk only if model is optimized}
 
