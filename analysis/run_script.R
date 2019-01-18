@@ -41,6 +41,7 @@ if (notebook_ix == 1) {
   max_iter <- as.integer(args[5])
   bound_setting <- args[6]
   comp_job <- args[7]
+  algorithm <- args[8]
 
   print(sprintf("Participant id: %d", pid))
   print(sprintf("Model name: %s", model_name))
@@ -48,6 +49,7 @@ if (notebook_ix == 1) {
   print(sprintf("Max. number of iterations: %d", max_iter))
   print(sprintf("Bound setting: %s", bound_setting))
   print(sprintf("Computing job: %s", comp_job))
+  print(sprintf("Optimization algorithm: %s", algorithm))
 
   if (comp_job == "all") {
     do_optimize = TRUE
@@ -88,7 +90,7 @@ if (notebook_ix == 1) {
                                                                model_name = model_name,
                                                                parameterization = parameterization,
                                                                bound_setting = "wide",
-                                                               algorithm = "DEoptimR",
+                                                               algorithm = algorithm,
                                                                max_iter = max_iter,
                                                                rel_tol = 0.000001,
                                                                n_pop_per_free_param = 10,

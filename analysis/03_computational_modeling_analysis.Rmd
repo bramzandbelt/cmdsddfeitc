@@ -5,7 +5,7 @@ params:
   model_name: "DDM" # name of the model class to fit to the data
   parameterization: "time_scaling" # name of the parameterization to fit to the data
   bound_setting: "wide" # whether to use standard or wide bounds on parameter values
-  algorithm: "DEoptim"
+  algorithm: "DEoptimR"
   par_vals: !r c(1.93, 1, 0.128, 1, 1.01, 0.843, 0.00210, 2.48, 1.30) # when optimize = FALSE, report is generated using these values
   max_iter: 5000 # maximum number of iterations
   rel_tol: 0.00000001 # relative tolerance
@@ -321,7 +321,7 @@ if (params$optimize) {
                            data = obs_nested,
                            model = params$model_name,
                            parameterization = parameterization,
-                           pcrit = c(.95, .05)
+                           pcrit = c(.8, .2)
                            )
       
       this_optim_val <- optim_out$value
@@ -351,7 +351,7 @@ if (params$optimize) {
                           data = obs_nested,
                           model = params$model_name,
                           parameterization = parameterization,
-                          pcrit = c(.95, .05)
+                          pcrit = c(.8, .2)
                         )
       
       optim_val_per_iter[iter] <- optim_out$value
