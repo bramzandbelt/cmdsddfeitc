@@ -6,13 +6,13 @@ params:
   parameterization: "time_scaling" # name of the parameterization to fit to the data
   bound_setting: "wide" # whether to use standard or wide bounds on parameter values
   algorithm: "DEoptimR"
-  par_vals: !r c(1.93, 1, 0.128, 1, 1.01, 0.843, 0.00210, 2.48, 1.30) # when optimize = FALSE, report is generated using these values
+  par_vals: !r c(0.6057, 1, 0.7458, 1, 1.0564, 0.9371, 4.9486, 1.088) # when optimize = FALSE, report is generated using these values
   max_iter: 5000 # maximum number of iterations
   rel_tol: 0.00000001 # relative tolerance
   n_pop_per_free_param: 20
   optimize: TRUE
   visualize: FALSE
-  pars_from_file: FALSE
+  pars_from_file: TRUE
 title: '`r stringr::str_c(stringr::str_to_title(params$title), " - participant ", params$participant_id)`'
 subtitle: '`r stringr::str_c(stringr::str_to_upper(params$model_name), params$parameterization, stringr::str_c(params$bound_setting, " bounds"), params$algorithm, sep = " - ")`'
 author: "Bram Zandbelt"
@@ -291,51 +291,49 @@ if (params$optimize) {
     best_par_val <- unname(optim_out$optim$bestmem)
     
   } else if (params$algorithm == "DEoptimR") {
-    # Optimization using bound constraints and nonlinear constraints
-    # - Since DEoptimR::JDEoptim does not return iteration-wise optimization 
-    #   function values and parameter values, we implement this two step metho
     
-    # Step 1 - Find reasonable starting parameter values (i.e. with likelihoods 
-    #   between 0.01 and 0.99 for all trials)
-    optim_val_per_iter <- rep(NA, params$max_iter)
-    par_vals_per_iter <- matrix(nrow = params$max_iter, ncol = length(lowers))
-    colnames(par_vals_per_iter) <- par_names
-    
-    this_optim_val <- 1e6
-    iter <- 1
-    
-    while (this_optim_val >= 1e6) {
-      # This ensures that reasonable starting parameter values (i.e. likelihoods between 0.01 and 0.99 for all trials)
-      optim_out <-
-        DEoptimR::JDEoptim(fn = itchmodel::get_log_likelihood, # optimization function
-                           lower = lowers, # lower bounds
-                           upper = uppers, # upper bounds
-                           constr = itchmodel::get_nonlinear_constraints,
-                           meq = 0,
-                           maxiter = 1,
-                           tol = params$rel_tol,
-                           NP = params$n_pop_per_free_param * n_free_params,
-                           trace = TRUE,
-                           details = TRUE,
-                           # Additional arguments passed to fn and constr:
-                           data = obs_nested,
-                           model = params$model_name,
-                           parameterization = parameterization,
-                           pcrit = c(.8, .2)
-                           )
+    # DEoptimR took very long and very slowly converged to run for DDM models. 
+    # To address this, we start from the best-fitting DDM parameters obtained 
+    # with the DEoptim algorithm
+    if (params$pars_from_file) {
+      # Load the best-fitting parameters obtained with DEoptim, if this file exists
       
-      this_optim_val <- optim_out$value
-      optim_val_per_iter[iter] <- optim_out$value
-      par_vals_per_iter[iter,] <- optim_out$par
+      best_par_val_file <-
+        list.files(path = converged_models_dir,
+                   pattern = sprintf("^best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s.*.csv$",
+                                     params$participant_id, # pid
+                                     params$model_name, # model
+                                     params$parameterization, # pmz
+                                     params$bound_setting, # bounds
+                                     "DEoptim" # algorithm
+                                     )
+                   )
+    } else {
+      best_par_val_file <- "NA"
     }
     
-    # Step 2 - Optimize parameter values and store intermediate optimization
-    # function value and parameter values
-    while (optim_out$convergence == 1 & iter <= (params$max_iter - 1)) {
+    
+    if (file.exists(file.path(converged_models_dir, best_par_val_file))) {
+      best_par_val <-
+        readr::read_csv(file = file.path(converged_models_dir, best_par_val_file),
+                        col_types = readr::cols()) %>%
+        dplyr::select(-participant_id, -model_name, -parameterization, -bound_settings, -algorithm) %>%
+        as.double()
       
-      iter <- iter + 1
+      optim_val_per_iter <- rep(NA, params$max_iter)
+      par_vals_per_iter <- matrix(nrow = params$max_iter, ncol = length(lowers))
+      colnames(par_vals_per_iter) <- par_names
       
+      this_optim_val <- 1e6
+      iter <- 0
       optim_out <- 
+        list(convergence = 1)
+      
+      while (optim_out$convergence == 1 & iter <= (params$max_iter - 1)) {
+        
+        iter <- iter + 1
+        
+        optim_out <- 
        DEoptimR::JDEoptim(fn = itchmodel::get_log_likelihood, # optimization function
                           lower = lowers, # lower bounds
                           upper = uppers, # upper bounds
@@ -343,8 +341,7 @@ if (params$optimize) {
                           constr = itchmodel::get_nonlinear_constraints,
                           maxiter = 1,
                           tol = params$rel_tol,
-                          NP = 0,
-                          add_to_init_pop = optim_out$poppar,
+                          add_to_init_pop = as.matrix(best_par_val),
                           trace = TRUE,
                           details = TRUE,
                           # Additional arguments passed to fn and constr:
@@ -353,9 +350,80 @@ if (params$optimize) {
                           parameterization = parameterization,
                           pcrit = c(.8, .2)
                         )
+        
+        optim_val_per_iter[iter] <- optim_out$value
+        par_vals_per_iter[iter,] <- optim_out$par
+      }
       
-      optim_val_per_iter[iter] <- optim_out$value
-      par_vals_per_iter[iter,] <- optim_out$par
+    } else {
+      
+      # Optimization using bound constraints and nonlinear constraints
+      # - Since DEoptimR::JDEoptim does not return iteration-wise optimization 
+      #   function values and parameter values, we implement this two step metho
+    
+      
+      # Step 1 - Find reasonable starting parameter values (i.e. with likelihoods 
+      #   between 0.01 and 0.99 for all trials)
+      optim_val_per_iter <- rep(NA, params$max_iter)
+      par_vals_per_iter <- matrix(nrow = params$max_iter, ncol = length(lowers))
+      colnames(par_vals_per_iter) <- par_names
+      
+      this_optim_val <- 1e6
+      iter <- 1
+      
+      while (this_optim_val >= 1e6) {
+        # This ensures that reasonable starting parameter values (i.e. likelihoods between 0.01 and 0.99 for all trials)
+        optim_out <-
+          DEoptimR::JDEoptim(fn = itchmodel::get_log_likelihood, # optimization function
+                             lower = lowers, # lower bounds
+                             upper = uppers, # upper bounds
+                             constr = itchmodel::get_nonlinear_constraints,
+                             meq = 0,
+                             maxiter = 1,
+                             tol = params$rel_tol,
+                             NP = params$n_pop_per_free_param * n_free_params,
+                             trace = TRUE,
+                             details = TRUE,
+                             # Additional arguments passed to fn and constr:
+                             data = obs_nested,
+                             model = params$model_name,
+                             parameterization = parameterization,
+                             pcrit = c(.8, .2)
+                             )
+        
+        this_optim_val <- optim_out$value
+        optim_val_per_iter[iter] <- optim_out$value
+        par_vals_per_iter[iter,] <- optim_out$par
+      }
+      
+      # Step 2 - Optimize parameter values and store intermediate optimization
+      # function value and parameter values
+      while (optim_out$convergence == 1 & iter <= (params$max_iter - 1)) {
+        
+        iter <- iter + 1
+        
+        optim_out <- 
+         DEoptimR::JDEoptim(fn = itchmodel::get_log_likelihood, # optimization function
+                            lower = lowers, # lower bounds
+                            upper = uppers, # upper bounds
+                            meq = 0,
+                            constr = itchmodel::get_nonlinear_constraints,
+                            maxiter = 1,
+                            tol = params$rel_tol,
+                            NP = 0,
+                            add_to_init_pop = optim_out$poppar,
+                            trace = TRUE,
+                            details = TRUE,
+                            # Additional arguments passed to fn and constr:
+                            data = obs_nested,
+                            model = params$model_name,
+                            parameterization = parameterization,
+                            pcrit = c(.8, .2)
+                          )
+        
+        optim_val_per_iter[iter] <- optim_out$value
+        par_vals_per_iter[iter,] <- optim_out$par
+      }
     }
     
     # Store optimization function value and parameter values in variables ------
