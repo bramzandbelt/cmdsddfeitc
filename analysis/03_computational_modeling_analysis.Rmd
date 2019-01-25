@@ -300,7 +300,7 @@ if (params$optimize) {
       
       best_par_val_file <-
         list.files(path = converged_models_dir,
-                   pattern = sprintf("^best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s.*.csv$",
+                   pattern = sprintf("^best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC.*.csv$",
                                      params$participant_id, # pid
                                      params$model_name, # model
                                      params$parameterization, # pmz
@@ -348,7 +348,7 @@ if (params$optimize) {
                           data = obs_nested,
                           model = params$model_name,
                           parameterization = parameterization,
-                          pcrit = c(.8, .2)
+                          pcrit = c(.75, .25)
                         )
         
         optim_val_per_iter[iter] <- optim_out$value
@@ -388,7 +388,7 @@ if (params$optimize) {
                              data = obs_nested,
                              model = params$model_name,
                              parameterization = parameterization,
-                             pcrit = c(.8, .2)
+                             pcrit = c(.75, .25)
                              )
         
         this_optim_val <- optim_out$value
@@ -418,7 +418,7 @@ if (params$optimize) {
                             data = obs_nested,
                             model = params$model_name,
                             parameterization = parameterization,
-                            pcrit = c(.8, .2)
+                            pcrit = c(.75, .25)
                           )
         
         optim_val_per_iter[iter] <- optim_out$value
@@ -462,28 +462,42 @@ if (params$optimize) {
   if (params$pars_from_file) {
     
     # Optimization output statistics: used to determined convergence
+    optim_out_stats_file_pattern <- 
+      sprintf("^optim_stats_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC.*.csv$",
+              params$participant_id, # pid
+              params$model_name, # model
+              params$parameterization, # pmz
+              params$bound_setting, # bounds
+              params$algorithm # algorithm
+              )
+    
     optim_out_stats_file <- 
       list.files(path = converged_models_dir,
-                 pattern = sprintf("^optim_stats_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC.*.csv$",
-                 params$participant_id, # pid
-                 params$model_name, # model
-                 params$parameterization, # pmz
-                 params$bound_setting, # bounds
-                 params$algorithm # algorithm
+                 pattern = optim_out_stats_file_pattern
                  )
-                 )
+    
+    # If the file is empty, it is possible that the optimization has not converged onto a minimum, so check nonconverged_models_dir
+    if (length(optim_out_stats_file) == 0) {
+      optim_out_stats_file <- 
+        list.files(path = nonconverged_models_dir,
+                   pattern = optim_out_stats_file_pattern
+                   )
+      source_data_dir <- nonconverged_models_dir
+    } else {
+      source_data_dir <- converged_models_dir
+    }
+      
     
     assertthat::assert_that(length(optim_out_stats_file) == 1,
-                            msg = "Multiple optimization output files (optim_out_stats_file) detected; unclear which one to select.")
-    
+                            msg = "Multiple (or no) optimization output files (optim_out_stats_file) detected; unclear which one to select.")
     
     optim_out_stats <- 
-      readr::read_csv(file.path(converged_models_dir, optim_out_stats_file),
+      readr::read_csv(file.path(source_data_dir, optim_out_stats_file),
                       col_types = readr::cols())
     n_iter <- optim_out_stats$n_iter
     
     optim_val_per_iter_file <- 
-      list.files(path = converged_models_dir,
+      list.files(path = source_data_dir,
                  pattern = sprintf("^evolution_of_fun_val_across_iters_task-.*_pid-%.3d_model-%s.*_pmz-%s_bounds-%s_algorithm-%s.*.csv$",
                                    params$participant_id, # pid
                                    params$model_name, # model
@@ -497,7 +511,7 @@ if (params$optimize) {
                             msg = "Multiple optimization value files (optim_val_per_iter_file) detected; unclear which one to select.")
       
     optim_val_per_iter_tibb <- 
-      readr::read_csv(file.path(converged_models_dir, optim_val_per_iter_file),
+      readr::read_csv(file.path(source_data_dir, optim_val_per_iter_file),
                       col_types = readr::cols()) %>%
       tidyr::drop_na() %>%
       dplyr::select(iter, fun_val)
@@ -508,7 +522,7 @@ if (params$optimize) {
       dplyr::pull(fun_val)
     
     par_vals_per_iter_file <- 
-      list.files(path = converged_models_dir,
+      list.files(path = source_data_dir,
                  pattern = sprintf("^evolution_of_params_across_iters_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s_BIC.*.csv$",
                                    params$participant_id, # pid
                                    params$model_name, # model
@@ -522,7 +536,7 @@ if (params$optimize) {
                             msg = "Multiple parameter values files (par_vals_per_iter_file) detected; unclear which one to select.")
     
     par_vals_per_iter <- 
-      readr::read_csv(file.path(converged_models_dir, par_vals_per_iter_file),
+      readr::read_csv(file.path(source_data_dir, par_vals_per_iter_file),
                       col_types = readr::cols()) %>%
       dplyr::select(iter, as.character(par_names)) %>%
       tidyr::drop_na()
@@ -536,7 +550,7 @@ if (params$optimize) {
                     factor_key = TRUE)
     
     best_par_val_file <-
-      list.files(path = converged_models_dir,
+      list.files(path = source_data_dir,
                  pattern = sprintf("^best_fitting_params_task-.*_pid-%.3d_model-%s_pmz-%s_bounds-%s_algorithm-%s.*.csv$",
                                    params$participant_id, # pid
                                    params$model_name, # model
@@ -550,7 +564,7 @@ if (params$optimize) {
                             msg = "Multiple best-fitting parameter values files (best_par_val_file) detected; unclear which one to select.")
     
     best_par_val <-
-      readr::read_csv(file = file.path(converged_models_dir, best_par_val_file),
+      readr::read_csv(file = file.path(source_data_dir, best_par_val_file),
                       col_types = readr::cols()) %>%
       dplyr::select(-participant_id, -model_name, -parameterization, -bound_settings, -algorithm) %>%
       as.double()
