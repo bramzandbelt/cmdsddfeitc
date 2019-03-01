@@ -29,54 +29,44 @@ Getting started
 The following directory tree shows how the research compendium is organized (only the most relevant directories and files are shown):
 
     .
-    ├── R                                           # Project-specific R functions
-    ├── analysis                                    # R Markdown analysis notebook templates and bash files
-    │   ├── bash
+    ├── R                                                                       # Project-specific R functions
+    ├── analysis                                                                # Analysis bash scripts and R Markdown notebook templates
+    │   ├── bash                                                                # Bash scripts for batching analyses
     │   │   ├── 01_preprocessing.sh
     │   │   ├── 02_exploratory_data_analysis.sh
     │   │   ├── 03_computational_modeling_analysis_cluster.sh
     │   │   ├── 03_computational_modeling_analysis_cluster_run_script.sh
-    │   │   ├── 03_computational_modeling_analysis_cluster_tailored.sh
-    │   │   ├── 03_computational_modeling_analysis_dftc_cluster.sh
     │   │   ├── 03_computational_modeling_analysis_local.sh
     │   │   ├── 03_computational_modeling_analysis_local_run_script.sh
+    │   │   ├── 04_sanity_check_control_trial_performance_grp.sh
+    │   │   ├── 05_eda_grp.sh
+    │   │   ├── 06_model_comparison_grp.sh
+    │   │   ├── 07_observed_vs_predicted_performance_grp.sh
+    │   │   ├── 08_analysis_of_model_parameters_grp.sh
+    │   │   ├── 09_sanity_check_effect_framing_on_model_predicted_auc_grp.sh
     │   │   └── run_all_analyses.sh
-    │   ├── notebook_templates
-    │   │   ├── 01_preprocessing_idv.Rmd                                        # Preprocesses raw behavioral data (individual level)
-    │   │   ├── 02_eda_idv.Rmd                                                  # EDA of choices and response times (individual level)
-    │   │   ├── 03_computational_modeling_analysis_idv.Rmd                      # Models choices and response times, given model and parameterization (individual level)
-    │   │   ├── 04_sanity_check_control_trial_performance_grp.Rmd               # Sanity checks on control trial performance (group-level)
-    │   │   ├── 05_eda_grp.Rmd                                                  # EDA if choices and response times (group-level)
-    │   │   ├── 06_model_comparison_grp.Rmd                                     # Compares models based on Bayesian Information Criterion (group-level)
-    │   │   ├── 07_observed_vs_predicted_performance_grp.Rmd                    # Compares observed and predicted choices and response times (group-level)
-    │   │   ├── 08_analysis_of_model_parameters_grp.Rmd                         # Analyzes distribution of and relationship between best-fitting parameter values (group-level)
-    │   │   └── 09_sanity_check_effect_framing_on_model_predicted_auc_grp.Rmd   # Assesses whether best-fitting model predicts expected framing effects (group-level)
-    │   └── run_script.R
-
-
-
-    │   ├── 01_preprocessing.Rmd                    
-    │   ├── 02_exploratory_data_analysis.Rmd        
-    │   ├── 03_computational_modeling_analysis.Rmd  
-    │   ├── 04_performance_descriptives_group.Rmd   
-    │   ├── 04_sanity_check_control_trial_performance_group.Rmd   
-    │   ├── 05_eda_overview.Rmd                                   # EDA of choices and response times (group level)
-    │   ├── 06_model_comparison_group.Rmd                         # Identifies best-fitting model (group level)
-    │   ├── 07_observed_vs_predicted_performance_group.Rmd        # Assesses model fit to the data (group level)
-    │   ├── 08_analysis_of_model_parameters.Rmd
-    │   ├── 09_sanity_check_effect_framing_on_model_predicted_auc.Rmd
-    │   ├── bash
-    ├── cmdsddfeitc.Rproj             # R project file, c
-    ├── data                # Data
-    │   ├── derivatives     # - derivatives from raw data, organized by analysis
-    │   ├── pilot           # - data from pilot
-    │   └── raw             # - raw data
+    │   ├── notebook_templates                                                  # R Markdown notebook templates, containing the main analyses
+    │   │   ├── 01_preprocessing_idv.Rmd                                        # - preprocesses raw behavioral data (individual level)
+    │   │   ├── 02_eda_idv.Rmd                                                  # - performs EDA of choices and response times (individual level)
+    │   │   ├── 03_computational_modeling_analysis_idv.Rmd                      # - models choices and response times, given model and parameterization (individual level)
+    │   │   ├── 04_sanity_check_control_trial_performance_grp.Rmd               # - sanity checks on control trial performance (group-level)
+    │   │   ├── 05_eda_grp.Rmd                                                  # - performs EDA of choices and response times (group-level)
+    │   │   ├── 06_model_comparison_grp.Rmd                                     # - compares models based on Bayesian Information Criterion (group-level)
+    │   │   ├── 07_observed_vs_predicted_performance_grp.Rmd                    # - compares observed and predicted choices and response times (group-level)
+    │   │   ├── 08_analysis_of_model_parameters_grp.Rmd                         # - analyzes distribution of and relationship between best-fitting parameter values (group-level)
+    │   │   └── 09_sanity_check_effect_framing_on_model_predicted_auc_grp.Rmd   # - assesses whether best-fitting model predicts expected framing effects (group-level)
+    │   └── run_script.R                                                        # Serves as an intermediate between the bash scripts and R Markdown notebooks
+    ├── cmdsddfeitc.Rproj                                                       # R project file
+    ├── data                                                                    # Data
+    │   ├── derivatives                                                         # - derivatives from raw data, organized by analysis
+    │   ├── pilot                                                               # - data from pilot
+    │   └── raw                                                                 # - raw data
     ├── documents
     │   ├── information_for_participants
     │   ├── manuscript
     │   ├── miscellaneous
     │   └── presentations
-    ├── figures             # Figure files, organized by analysis
+    ├── figures                                                                 # Figures produced by running the analyses
     │   ├── 03_computational_modeling_analysis
     │   ├── 04_performance_descriptives_group
     │   ├── 04_sanity_check_control_trial_performance_group
@@ -87,13 +77,13 @@ The following directory tree shows how the research compendium is organized (onl
     │   ├── 08_analysis_of_model_parameters
     │   ├── 08_sanity_check_effect_framing_on_model_predicted_auc
     │   └── 09_sanity_check_effect_framing_on_model_predicted_auc
-    ├── man                 # Roxygen2-generated documentation of functions
-    ├── metadata            # Project's metadata
-    │   └── raw             # - metadata describing content and context of raw data
+    ├── man                                                                     # Roxygen2-generated documentation of functions
+    ├── metadata                                                                # Project's metadata
+    │   └── raw                                                                 # - metadata describing content and context of raw data
     ├── opt
     │   └── IDP_R
-    ├── packrat             # Packrat's directory containing dependencies
-    └── reports             # Static HTML reports of analyses
+    ├── packrat                                                                 # Packrat's directory, keeps track of dependencies
+    └── reports                                                                 # Static HTML reports of analyses
         ├── 01_preprocessing
         ├── 02_exploratory_data_analysis
         └── 03_computational_modeling_analysis
