@@ -1,164 +1,186 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-cmdsddfeitc - Cognitive Mechanisms of the Defer-Speedup and Date-Delay Framing Effects in InterTemporal Choice
-==============================================================================================================
+[![Last-changedate](https://img.shields.io/badge/last%20change-2019--06--12-brightgreen.svg)](https://github.com/bramzandbelt/cmdsddfeitc/commits/master) [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.6.0-brightgreen.svg)](https://cran.r-project.org/) [![Task DOI](https://zenodo.org/badge/125838088.svg)](https://zenodo.org/badge/latestdoi/125838088) [![Code licence](https://img.shields.io/github/license/mashape/apistatus.svg)](http://choosealicense.com/licenses/mit/) [![ORCiD](https://img.shields.io/badge/ORCiD-0000--0002--6491--1247-green.svg)](https://orcid.org/0000-0002-6491-1247)
+
+cmdsddfeitc - Research compendium for the report on the cognitive mechanisms of the defer-speedup and date-delay framing effects in intertemporal choice by Zandbelt
+====================================================================================================================================================================
+
+Compendium DOI
+--------------
+
+<!-- TODO: Add Zenodo DOI -->
+The files at the URL above will generate the results as found in the preprint. The files hosted at <https://github.com/bramzandbelt/cmdsddfeitc/> are the development versions and may have changed since the preprint was published.
+
+Author of this repository
+-------------------------
+
+Bram Zandbelt (<bramzandbelt@gmail.com>)
+
+Published in:
+-------------
+
+TBA <!-- TODO: Add psyRxiv DOI -->
 
 Overview
 --------
 
-The packagae `cmdsddfeitc` is a research compendium of the research project Cognitive Mechanisms of the Defer-Speedup and Date-Delay Framing Effects in Intertemporal Choice by Bram Zandbelt and Roshan Cools and was run at the Donders Institute, Radboud University / Radboucumc, Nijmegen, the Netherlands.
+The packagae `cmdsddfeitc` is a research compendium of the research project *Cognitive Mechanisms of the Defer-Speedup and Date-Delay Framing Effects in Intertemporal Choice* by Bram Zandbelt. This project was conducted at the Donders Institute, Radboud University / Radboucumc, Nijmegen, the Netherlands, and registered at the Donders Centre for Cognitive Neuroimaging under project number (DCCN PI: Roshan Cools).
 
-This research project was funded through European Union’s Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant agreement No. 703141.
-
-This research compendium is associated with a number of online objects, including:
-
--   the preregistration document (<https://osf.io/rzqh9/>);
--   data management plan (<https://doi.org/10.6084/m9.figshare.4720978>);
--   cognitive task (<https://github.com/bramzandbelt/itch_time_framing_task>);
--   computational model (<https://github.com/bramzandbelt/itchmodel>).
-
-<!-- ## Example -->
-<!-- This is a basic example which shows you how to solve a common problem: -->
-<!-- ```{r example} -->
-<!-- ## basic example code -->
-<!-- ``` -->
-Getting started
----------------
-
-### Organization
-
-The following directory tree shows how the research compendium is organized (only the most relevant directories and files are shown):
+This research compendium contains all data, code, and text associated with the above-mentioned publication. It is organized as follows:
 
     .
-    ├── R                                                                       # Project-specific R functions
-    ├── analysis                                                                # Analysis bash scripts and R Markdown notebook templates
-    │   ├── bash                                                                # Bash scripts for batching analyses
-    │   │   ├── 01_preprocessing.sh
-    │   │   ├── 02_exploratory_data_analysis.sh
-    │   │   ├── 03_computational_modeling_analysis_cluster.sh
-    │   │   ├── 03_computational_modeling_analysis_cluster_run_script.sh
-    │   │   ├── 03_computational_modeling_analysis_local.sh
-    │   │   ├── 03_computational_modeling_analysis_local_run_script.sh
-    │   │   ├── 04_sanity_check_control_trial_performance_grp.sh
-    │   │   ├── 05_eda_grp.sh
-    │   │   ├── 06_model_comparison_grp.sh
-    │   │   ├── 07_observed_vs_predicted_performance_grp.sh
-    │   │   ├── 08_analysis_of_model_parameters_grp.sh
-    │   │   ├── 09_sanity_check_effect_framing_on_model_predicted_auc_grp.sh
-    │   │   └── run_all_analyses.sh
-    │   ├── notebook_templates                                                  # R Markdown notebook templates, containing the main analyses
-    │   │   ├── 01_preprocessing_idv.Rmd                                        # - preprocesses raw behavioral data (individual level)
-    │   │   ├── 02_eda_idv.Rmd                                                  # - performs EDA of choices and response times (individual level)
-    │   │   ├── 03_computational_modeling_analysis_idv.Rmd                      # - models choices and response times, given model and parameterization (individual level)
-    │   │   ├── 04_sanity_check_control_trial_performance_grp.Rmd               # - sanity checks on control trial performance (group-level)
-    │   │   ├── 05_eda_grp.Rmd                                                  # - performs EDA of choices and response times (group-level)
-    │   │   ├── 06_model_comparison_grp.Rmd                                     # - compares models based on Bayesian Information Criterion (group-level)
-    │   │   ├── 07_observed_vs_predicted_performance_grp.Rmd                    # - compares observed and predicted choices and response times (group-level)
-    │   │   ├── 08_analysis_of_model_parameters_grp.Rmd                         # - analyzes distribution of and relationship between best-fitting parameter values (group-level)
-    │   │   └── 09_sanity_check_effect_framing_on_model_predicted_auc_grp.Rmd   # - assesses whether best-fitting model predicts expected framing effects (group-level)
-    │   └── run_script.R                                                        # Serves as an intermediate between the bash scripts and R Markdown notebooks
-    ├── cmdsddfeitc.Rproj                                                       # R project file
-    ├── data                                                                    # Data
-    │   ├── derivatives                                                         # - derivatives from raw data, organized by analysis
-    │   ├── pilot                                                               # - data from pilot
-    │   └── raw                                                                 # - raw data
+    ├── R
+    ├── analysis
+    ├── data
     ├── documents
-    │   ├── information_for_participants
-    │   ├── manuscript
-    │   ├── miscellaneous
-    │   └── presentations
-    ├── figures                                                                 # Figures produced by running the analyses
-    │   ├── 03_computational_modeling_analysis
-    │   ├── 04_performance_descriptives_group
-    │   ├── 04_sanity_check_control_trial_performance_group
-    │   ├── 05_eda_overview_group
-    │   ├── 05_model_comparison_group
-    │   ├── 06_model_comparison_group
-    │   ├── 07_observed_vs_predicted_performance_group
-    │   ├── 08_analysis_of_model_parameters
-    │   ├── 08_sanity_check_effect_framing_on_model_predicted_auc
-    │   └── 09_sanity_check_effect_framing_on_model_predicted_auc
-    ├── man                                                                     # Roxygen2-generated documentation of functions
-    ├── metadata                                                                # Project's metadata
-    │   └── raw                                                                 # - metadata describing content and context of raw data
+    ├── figures
+    ├── man
+    ├── metadata
     ├── opt
-    │   └── IDP_R
-    ├── packrat                                                                 # Packrat's directory, keeps track of dependencies
-    └── reports                                                                 # Static HTML reports of analyses
-        ├── 01_preprocessing
-        ├── 02_exploratory_data_analysis
-        └── 03_computational_modeling_analysis
+    ├── packrat
+    └── reports
 
-A few pointers about the data structure:
+The `R/` directory contains:
 
--   All data are stored as comma-separated value (csv) files in the directory `data`. Raw data are in `data/raw`, derived data are in `data/derived/`, organized by analysis. Metadata describing the content of the raw data are in the directory `metadata`, metadata describing the content of the derived data can be found in the analysis notebooks.
--   The directory `analysis/notebook_templates` contains the core analyses as R Markdown notebooks that can be parameterized. R Markdown facilitates easy reproduction of the analyses. Parameterization of the notebooks enables customization of the analysis; for instance, to perform an analysis for a certain participant or task (for more details, see [Usage](#usage) and [Yihui Xie's chapter on Parameterized Reports](https://bookdown.org/yihui/rmarkdown/parameterized-reports.html)). The notebooks can be run interactively in RStudio or they can be 'knitted' to produce static HTML reports (by running the bash scripts). Static HTML reports are written in the `reports` directory.
+-   R code specific to the present project; functions are organized into files (e.g. functions for plotting are in `plot_functions.R`)
 
--   Most project-specific code resides in the directory `R`; some notebook-specific code is defined inside the analysis notebooks. Software dependencies are handled by packrat.
+The `analysis/` directory contains:
 
-### Usage
+-   R Markdown notebooks implementing the analyses (`notebook_templates/` directory), numbered in the order in which they should be run;
+-   shell scripts running the R Markdown notebooks with appropriate parameters, if any (`bash/` directory).
 
-#### Parameterization of analysis notebooks
+The `data/` directory contains:
 
-The following parameters can be set:
+-   the raw performance data (`raw/` directory);
+-   the data derived from the raw data (`derivatives/` directory), organized by notebook name.
 
--   `participant_id`: the participant identifier (ranging from 1 to 93);
--   `task`: the task from which to process the data:
--   `defer_speedup`: intertemporal choice task with neutral, defer, and speedup frames;
--   `date_delay`: intertemporal choice task with delay and date frames;
--   `visualize`: whether or not to visualize the results (e.g. set to `FALSE` when fitting the model to the data);
--   `optimize`: whether or not to optimize the parameter values (i.e. set to `FALSE` when only visualizing the data);
--   `pars_from_file`: whether to use parameter values stored on disk (i.e. set to `TRUE` when visualizing the data)
--   `algorithm`: specification of the optimization algorithm:
--   `DEoptim`: differential evolution algorithm with (lower and upper) bound constraints;
--   `DEoptimR`: differential evolution algorithm with (lower and upper) bound and nonlinear constraints (i.e. ensuring that P(LL choice|SS amount = 0) &gt; 0.75 and P(LL choice| SS amount = LL amount) &lt; 0.25);
--   `model_name`: name of the model class to fit to the data, can be any of the following:
--   `DDM`: Drift-diffusion model (fits choices and response times);
--   `DFT_CRT`: Decision field theory (fits choices and response times);
--   `DFT_C`: Decision field theory (fits choices only);
--   `parameterization`: name of the parameterization to fit to the data:
--   `time_scaling`: lets `\kappa` parameter of the time function vary between frames;
--   `value_scaling`: lets `\mu` parameter of the value function vary between frames;
--   `time_and_value_scaling`: lets `\kappa` parameter of the time function and `\mu` parameter of the value function vary between frames;
--   `time_scaling_t0`: lets `\kappa` parameter of the time function and non-decision time (`t0`) vary between frames;
--   `value_scaling_t0`: lets `\mu` parameter of the value function and non-decision time (`t0`) vary between frames;
--   `time_and_value_scaling_t0`: lets `\kappa` parameter of the time function, `\mu` parameter of the value function, and non-decision time (`t0`) vary between frames;
--   `bound_setting`: controls the lower and upper bounds on the model parameters:
--   `standard`: uses parameter bounds specified in the preregistration document;
--   `wide`: uses wider parameter bounds, allowing parameters values to account for 'reverse' framing effects (e.g. more LL choices for delay than date frames);
--   `max_iter`: maximum iterations performed before optimization algorithm stops;
--   `rel_tol`: tolerance of the optimization algorithm's stopping criterion;
--   `n_pop_per_free_param`: number of population members per free parameter (see `NP` in `DEoptimR::JDEoptim` and `DEoptim::DEoptim.control`).
+The `documents/` directory contains:
 
-These parameter are used in the following analysis notebooks (indicated by their number only)
+-   documents describing the content of the experimental data (`content/` directory);
+-   documents describing the context of the data (`context/` directory);
+-   documents related to the report of this research project (`manuscript/` directory).
 
-| parameter              | 01  | 02  | 03  | 04  | 05  | 06  | 07  | 08  | 09  |
-|:-----------------------|-----|-----|-----|-----|-----|-----|-----|-----|-----|
-| `participant_id`       | X   | X   | X   |     |     |     |     |     |     |
-| `task`                 |     |     |     | X   | X   | X   | X   | X   | X   |
-| `visualize`            | X   | X   | X   |     |     |     |     |     |     |
-| `optimize`             |     |     | X   |     |     |     |     |     |     |
-| `pars_from_file`       |     |     | X   |     |     |     |     |     |     |
-| `algorithm`            |     |     | X   |     |     | X   | X   | X   | X   |
-| `model_name`           |     |     | X   |     |     |     |     |     |     |
-| `parameterization`     |     |     | X   |     |     |     |     |     |     |
-| `bound_setting`        |     |     | X   |     |     |     |     |     |     |
-| `max_iter`             |     |     | X   |     |     |     |     |     |     |
-| `rel_tol`              |     |     | X   |     |     |     |     |     |     |
-| `n_pop_per_free_param` |     |     | X   |     |     |     |     |     |     |
+The `figures/` directory contains:
 
-#### Reproducing the analyses
+-   visualizations of descriptive and inferential statistics, organized by notebook name.
 
-To start from the raw data and reproduce the individual analyses (notebooks 1-3), run ... WARNING: reproducing the computational modeling takes a lot of computational time and is ideally done on a computer cluster.
+The `man/` directory contains:
 
-To start from the preprocessed data and reproduce the group analyses (notebooks 4-9), run ...
+-   documentation of objects inside the package, generated by `roxygen2`.
 
-Colophon
+The `packrat/` directory contains:
+
+-   R packages the research compendium depends on; for more info see <https://rstudio.github.io/packrat/>.
+
+The `reports/` directory contains:
+
+-   static HTML versions of the knitted R Markdown notebooks, organized by notebook name.
+
+Finally, this research compendium is associated with a number of online objects, including:
+
+<table>
+<colgroup>
+<col width="9%" />
+<col width="45%" />
+<col width="45%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>object</th>
+<th>archived version</th>
+<th>development version</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>preregistration</td>
+<td><a href="https://osf.io/rzqh9/" class="uri">https://osf.io/rzqh9/</a></td>
+<td>NA</td>
+</tr>
+<tr class="even">
+<td>data management plan</td>
+<td><a href="https://doi.org/10.6084/m9.figshare.4720978" class="uri">https://doi.org/10.6084/m9.figshare.4720978</a></td>
+<td>NA</td>
+</tr>
+<tr class="odd">
+<td>stimulus presentation code</td>
+<td><a href="https://doi.org/10.5281/zenodo.3243777" class="uri">https://doi.org/10.5281/zenodo.3243777</a></td>
+<td><a href="github.com/bramzandbelt/itch_time_framing_task" class="uri">github.com/bramzandbelt/itch_time_framing_task</a></td>
+</tr>
+<tr class="even">
+<td>cognitive modeling code</td>
+<td><a href="https://doi.org/10.5281/zenodo.3243806" class="uri">https://doi.org/10.5281/zenodo.3243806</a></td>
+<td><a href="https://github.com/bramzandbelt/itchmodel" class="uri">https://github.com/bramzandbelt/itchmodel</a></td>
+</tr>
+</tbody>
+</table>
+
+How to use
+----------
+
+This repository is organized as an R package, called `cmdsddfeitc`. The R package structure was used to help manage dependencies, to take advantage of continuous integration for automated code testing and documentation, and to be able to follow a standard format for file organization. The package `cmdsddfeitc` depends on other R packages and non-R programs, which are listed below under [Dependencies](#Dependencies).
+
+To download the package source as you see it on GitHub, for offline browsing, use this line at the shell prompt (assuming you have Git installed on your computer):
+
+Install `cmdsddfeitc` package from Github:
+
+``` r
+devtools::install_github("bramzandbelt/cmdsddfeitc")
+```
+
+Once the download is complete, open the file `cmdsddfeitc.Rproj` in RStudio to begin working with the package and compendium files. To reproduce all analyses, run the shell script `analysis/bash/run_all_analyses.sh`. This will run all RMarkdown notebooks in correct order. Note, however, that this will *not* reproduce the computational modeling analyses performed in the document `03_computational_modeling_analysis.Rmd`), only the result of the optimizations. This is because optimization of all 708 models (59 participants (defer-speedup, N = 28; date-delay, N = 31), 6 parameterizations, 2 architectures) was done on a computer cluster and would take simply too long to run. In order to reproduce the computational modeling analyses, run `03_computational_modeling_analysis.Rmd` as a parameterized report with argument `optimize=TRUE`.
+
+Licenses
 --------
 
-### Version
+Manuscript: CC-BY-4.0 <http://creativecommons.org/licenses/by/4.0/>
 
-### Contact
+Code: MIT <http://opensource.org/licenses/MIT>, year: 2019, copyright holder: Bram B. Zandbelt
 
-([mailto:bramzandbelt@gmail.com](mailto:bramzandbelt@gmail.com))\[<bramzandbelt@gmail.com>\]
+Data: Data Use Agreement of Donders Institute <!-- TODO: Add URL -->
 
-### References
+Dependencies
+------------
+
+Below is the output of `sessionInfo()`, showing version information about R, the OS, and attached or loaded packages:
+
+``` r
+sessionInfo()
+#> R version 3.6.0 (2019-04-26)
+#> Platform: x86_64-apple-darwin15.6.0 (64-bit)
+#> Running under: macOS Mojave 10.14.5
+#> 
+#> Matrix products: default
+#> BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
+#> LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+#> 
+#> locale:
+#> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+#> 
+#> attached base packages:
+#> [1] stats     graphics  grDevices utils     datasets  methods   base     
+#> 
+#> loaded via a namespace (and not attached):
+#>  [1] compiler_3.6.0  magrittr_1.5    htmltools_0.3.6 tools_3.6.0    
+#>  [5] yaml_2.2.0      Rcpp_1.0.1      stringi_1.4.3   rmarkdown_1.13 
+#>  [9] knitr_1.23      stringr_1.4.0   xfun_0.7        digest_0.6.19  
+#> [13] packrat_0.4.9-3 evaluate_0.14
+```
+
+Packrat takes care of dependencies.
+
+Acknowledgment
+--------------
+
+This research project was funded through European Union’s Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant agreement No. 703141 to Bram B. Zandbelt.
+
+Thanks to Ben Marwick for inspiration on [how to create, organize, and describe research compendia](https://github.com/benmarwick/researchcompendium).
+
+Contact
+-------
+
+[Bram B. Zandbelt](mailto:bramzandbelt@gmail.com)
+
+``` r
+# Ignore rest of document
+knitr::knit_exit()
+```
