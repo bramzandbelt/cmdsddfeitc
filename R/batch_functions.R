@@ -51,6 +51,12 @@ render_notebook <- function(notebook_file, notebook_dir = "analysis", reports_di
       pid_str <- sprintf("pid-%.3d", yaml_params$participant_id)
     }
 
+    if ("task" %in% names(run_params)) {
+      task_str <- sprintf("task-%s", stringr::str_replace(run_params$task, "_", ""))
+    } else{
+      task_str <- sprintf("task-%s", stringr::str_replace(yaml_params$task, "_", ""))
+    }
+
     if ("model_name" %in% names(run_params)) {
       model_str <- sprintf("model-%s", stringr::str_replace(run_params$model_name, "_", ""))
     } else{
@@ -105,7 +111,7 @@ render_notebook <- function(notebook_file, notebook_dir = "analysis", reports_di
       vis_str <- sprintf("visualize-%d", as.integer(yaml_params$visualize))
     }
 
-    suffix_str <- c(pid_str, model_str, pmz_str, bound_str, algorithm,
+    suffix_str <- c(pid_str, task_str, model_str, pmz_str, bound_str, algorithm,
                     max_iter, rel_tol, n_pop_per_free_param, optim_str, vis_str)
 
     nonempty_str <- stringr::str_length(suffix_str) > 0
