@@ -11,29 +11,45 @@
 #' @export
 get_col_types <- function(file_type){
 
+  model_levels <-
+    c("DDM", "DFT_CRT") # We aren't using the choice-only DFT models anymore
+    # c("DDM", "DFT_C", "DFT_CRT")
+  pmz_levels <-
+    c("one_condition", "time_scaling", "time_scaling_t0",
+      "time_and_value_scaling", "time_and_value_scaling_t0", "value_scaling",
+      "value_scaling_t0")
+  ds_task_pmz_levels <-
+    c("defer_speedup_one_condition", "defer_speedup_time_scaling",
+      "defer_speedup_time_scaling_t0", "defer_speedup_time_and_value_scaling",
+      "defer_speedup_time_and_value_scaling_t0", "defer_speedup_value_scaling",
+      "defer_speedup_value_scaling_t0")
+  dd_task_pmz_levels <-
+    c("date_delay_one_condition", "date_delay_time_scaling",
+      "date_delay_time_scaling_t0", "date_delay_time_and_value_scaling",
+      "date_delay_time_and_value_scaling_t0", "date_delay_value_scaling",
+      "date_delay_value_scaling_t0")
+
+  bound_setting_levels <-
+    c("standard", "wide")
+  algorithm_levels <-
+    c("DEoptimR", "DEoptim")
+
   switch(
     tolower(file_type),
     auc_defer_speedup =
       readr::cols_only(participant_id =
                          readr::col_integer(),
                        model =
-                         readr::col_factor(levels = c("DDM",
-                                                      "DFT_C"),
+                         readr::col_factor(levels = model_levels,
                                            include_na = TRUE),
                        parameterization =
-                         readr::col_factor(levels = c("one_condition",
-                                                      "time_scaling",
-                                                      "time_scaling_t0",
-                                                      "value_scaling",
-                                                      "value_scaling_t0"),
+                         readr::col_factor(levels = pmz_levels,
                                            include_na = TRUE),
                        bound_settings =
-                         readr::col_factor(levels = c("standard",
-                                                      "wide"),
+                         readr::col_factor(levels = bound_setting_levels,
                                            include_na = TRUE),
                        algorithm =
-                         readr::col_factor(levels = c("DEoptimR",
-                                                      "DEoptim"),
+                         readr::col_factor(levels = algorithm_levels,
                                            include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("neutral",
@@ -42,28 +58,23 @@ get_col_types <- function(file_type){
                                            include_na = TRUE,
                                            ordered = TRUE),
                        auc =
+                         readr::col_double(),
+                       norm_auc =
                          readr::col_double()),
     auc_date_delay =
       readr::cols_only(participant_id =
                          readr::col_integer(),
                        model =
-                         readr::col_factor(levels = c("DDM",
-                                                      "DFT_C"),
+                         readr::col_factor(levels = model_levels,
                                            include_na = TRUE),
                        parameterization =
-                         readr::col_factor(levels = c("one_condition",
-                                                      "time_scaling",
-                                                      "time_scaling_t0",
-                                                      "value_scaling",
-                                                      "value_scaling_t0"),
+                         readr::col_factor(levels = pmz_levels,
                                            include_na = TRUE),
                        bound_settings =
-                         readr::col_factor(levels = c("standard",
-                                                      "wide"),
+                         readr::col_factor(levels = bound_setting_levels,
                                            include_na = TRUE),
                        algorithm =
-                         readr::col_factor(levels = c("DEoptimR",
-                                                      "DEoptim"),
+                         readr::col_factor(levels = algorithm_levels,
                                            include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("delay",
@@ -71,28 +82,30 @@ get_col_types <- function(file_type){
                                            include_na = TRUE,
                                            ordered = TRUE),
                        auc =
+                         readr::col_double(),
+                       norm_auc =
                          readr::col_double()),
+    benchmark_data = readr::cols(participant_id =
+                                   readr::col_integer(),
+                                 stage_id = readr::col_character(),
+                                 criterion = readr::col_character(),
+                                 value = readr::col_double(),
+                                 criterion_met = readr::col_logical()
+                                 ),
     best_fitting_params =
       readr::cols(participant_id =
                     readr::col_integer(),
                  model_name =
-                   readr::col_factor(levels = c("DDM",
-                                                "DFT_C"),
-                                                include_na = TRUE),
+                   readr::col_factor(levels = model_levels,
+                                     include_na = TRUE),
                  parameterization =
-                   readr::col_factor(levels = c("one_condition",
-                                                "time_scaling",
-                                                "time_scaling_t0",
-                                                "value_scaling",
-                                                "value_scaling_t0"),
+                   readr::col_factor(levels = pmz_levels,
                                      include_na = TRUE),
                  bound_settings =
-                   readr::col_factor(levels = c("standard",
-                                                "wide"),
+                   readr::col_factor(levels = bound_setting_levels,
                                      include_na = TRUE),
                  algorithm =
-                   readr::col_factor(levels = c("DEoptimR",
-                                                "DEoptim"),
+                   readr::col_factor(levels = algorithm_levels,
                                      include_na = TRUE),
                  .default = readr::col_double()),
     calibration_indifference_points =
@@ -158,33 +171,39 @@ get_col_types <- function(file_type){
                                                   ordered = TRUE),
                        response = readr::col_character(),
                        rt = readr::col_double()),
+    model_selection_results =
+      readr::cols_only(model = readr::col_factor(levels = c("\u03BA",
+                                                            "\u03BC",
+                                                            "\u03BA \u03BC",
+                                                            "\u03BA t0",
+                                                            "\u03BC t0",
+                                                            "\u03BA \u03BC t0"),
+                                                 include_na = TRUE,
+                                                 ordered = TRUE),
+                       parameterization = readr::col_factor(levels = c("DDM (\u03C3 fixed)",
+                                                                       "DFT (\u03C3 varied)"),
+                                                            include_na = TRUE,
+                                                            ordered = TRUE),
+                       aggregate_BIC = readr::col_double(),
+                       k = readr::col_factor(levels = c(6,7,8,9),
+                                             include_na = TRUE,
+                                             ordered = TRUE),
+                       count = readr::col_integer(),
+                       dBIC = readr::col_double()),
     optim_stats_defer_speedup =
       readr::cols_only(participant_id = readr::col_integer(),
                        model =
-                         readr::col_factor(levels = c("DDM",
-                                                      "DFT_C"),
+                         readr::col_factor(levels = model_levels,
                                            include_na = TRUE),
                        parameterization =
-                         readr::col_factor(levels = c("one_condition",
-                                                      "defer_speedup_time_scaling",
-                                                      "defer_speedup_time_scaling_t0",
-                                                      "defer_speedup_value_scaling",
-                                                      "defer_speedup_value_scaling_t0"),
+                         readr::col_factor(levels = ds_task_pmz_levels,
                                            include_na = TRUE),
                        bound_settings =
-                         readr::col_factor(levels = c("standard",
-                                                      "wide"),
+                         readr::col_factor(levels = bound_setting_levels,
                                            include_na = TRUE),
                        algorithm =
-                         readr::col_factor(levels = c("DEoptimR",
-                                                      "DEoptim"),
+                         readr::col_factor(levels = algorithm_levels,
                                            include_na = TRUE),
-                       frame =
-                         readr::col_factor(levels = c("neutral",
-                                                      "defer",
-                                                      "speedup"),
-                                           include_na = TRUE,
-                                           ordered = TRUE),
                        n_iter =
                          readr::col_integer(),
                        converged =
@@ -199,29 +218,17 @@ get_col_types <- function(file_type){
     optim_stats_date_delay =
       readr::cols_only(participant_id = readr::col_integer(),
                        model =
-                         readr::col_factor(levels = c("DDM",
-                                                      "DFT_C"),
+                         readr::col_factor(levels = model_levels,
                                            include_na = TRUE),
                        parameterization =
-                         readr::col_factor(levels = c("one_condition",
-                                                      "date_delay_time_scaling",
-                                                      "date_delay_time_scaling_t0",
-                                                      "date_delay_value_scaling",
-                                                      "date_delay_value_scaling_t0"),
+                         readr::col_factor(levels = dd_task_pmz_levels,
                                            include_na = TRUE),
                        bound_settings =
-                         readr::col_factor(levels = c("standard",
-                                                      "wide"),
+                         readr::col_factor(levels = bound_setting_levels,
                                            include_na = TRUE),
                        algorithm =
-                         readr::col_factor(levels = c("DEoptimR",
-                                                      "DEoptim"),
+                         readr::col_factor(levels = algorithm_levels,
                                            include_na = TRUE),
-                       frame =
-                         readr::col_factor(levels = c("delay",
-                                                      "date"),
-                                           include_na = TRUE,
-                                           ordered = TRUE),
                        n_iter =
                          readr::col_integer(),
                        converged =
@@ -237,24 +244,17 @@ get_col_types <- function(file_type){
       readr::cols_only(participant_id =
                          readr::col_integer(),
                        model =
-                         readr::col_factor(levels = c("DDM",
-                                                      "DFT_C"),
+                         readr::col_factor(levels = model_levels,
                                            include_na = TRUE),
                        # TODO: Make sure that computational modeling notebook writes parmaterization as task + parameterization
                        parameterization =
-                         readr::col_factor(levels = c("one_condition",
-                                                      "time_scaling",
-                                                      "time_scaling_t0",
-                                                      "value_scaling",
-                                                      "value_scaling_t0"),
+                         readr::col_factor(levels = pmz_levels,,
                                            include_na = TRUE),
                        bound_settings =
-                         readr::col_factor(levels = c("standard",
-                                                      "wide"),
+                         readr::col_factor(levels = bound_setting_levels,
                                            include_na = TRUE),
                        algorithm =
-                         readr::col_factor(levels = c("DEoptimR",
-                                                      "DEoptim"),
+                         readr::col_factor(levels = algorithm_levels,
                                            include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("neutral",
@@ -271,24 +271,17 @@ get_col_types <- function(file_type){
       readr::cols_only(participant_id =
                          readr::col_integer(),
                        model =
-                         readr::col_factor(levels = c("DDM",
-                                                      "DFT_C"),
+                         readr::col_factor(levels = model_levels,
                                            include_na = TRUE),
                        # TODO: Make sure that computational modeling notebook writes parmaterization as task + parameterization
                        parameterization =
-                         readr::col_factor(levels = c("one_condition",
-                                                      "time_scaling",
-                                                      "time_scaling_t0",
-                                                      "value_scaling",
-                                                      "value_scaling_t0"),
+                         readr::col_factor(levels = pmz_levels,
                                            include_na = TRUE),
                        bound_settings =
-                         readr::col_factor(levels = c("standard",
-                                                      "wide"),
+                         readr::col_factor(levels = bound_setting_levels,
                                            include_na = TRUE),
                        algorithm =
-                         readr::col_factor(levels = c("DEoptimR",
-                                                      "DEoptim"),
+                         readr::col_factor(levels = algorithm_levels,
                                            include_na = TRUE),
                        frame =
                          readr::col_factor(levels = c("delay",
@@ -583,4 +576,37 @@ tidy_obs_prd_choice_rt <- function(return_var="obs", obs, model="", pmz="", para
     )
     )
   }
+}
+
+## relabel_pmz #################################################################
+#' Relabel parameterization levels
+#'
+#'
+#' @param x character vector of to be relabeled parameterization levels
+#' @export
+
+# Relabel functions
+relabel_pmz <- function(x) {
+  dplyr::case_when(
+    x == as.character(stringr::str_match(x, ".*_time_and_value_scaling$")) ~ "\u03BA \u03BC",
+    x == as.character(stringr::str_match(x, ".*_time_scaling$")) ~ "\u03BA",
+    x == as.character(stringr::str_match(x, ".*_value_scaling$")) ~ "\u03BC",
+    x == as.character(stringr::str_match(x, ".*_time_and_value_scaling_t0$")) ~ "\u03BA \u03BC t0",
+    x == as.character(stringr::str_match(x, ".*_time_scaling_t0$")) ~ "\u03BA t0",
+    x == as.character(stringr::str_match(x, ".*_value_scaling_t0$")) ~ "\u03BC t0",
+    TRUE ~ as.character(x)
+  )
+}
+
+## relabel_mdl #################################################################
+#' Relabel model levels
+#'
+#'
+#' @param x character vector of to be relabeled model levels
+#' @export
+relabel_mdl <- function(x) {
+  dplyr::case_when(
+    x == "DDM" ~ "DDM (\u03C3 fixed)",
+    x == "DFT_CRT" ~ "DFT (\u03C3 varied)",
+    TRUE ~ as.character(x))
 }
