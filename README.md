@@ -1,5 +1,5 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-[![Last-changedate](https://img.shields.io/badge/last%20change-2019--06--12-brightgreen.svg)](https://github.com/bramzandbelt/cmdsddfeitc/commits/master) [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.6.0-brightgreen.svg)](https://cran.r-project.org/) [![Task DOI](https://zenodo.org/badge/125838088.svg)](https://zenodo.org/badge/latestdoi/125838088) [![Code licence](https://img.shields.io/github/license/mashape/apistatus.svg)](http://choosealicense.com/licenses/mit/) [![ORCiD](https://img.shields.io/badge/ORCiD-0000--0002--6491--1247-green.svg)](https://orcid.org/0000-0002-6491-1247)
+[![Last-changedate](https://img.shields.io/badge/last%20change-2019--06--19-brightgreen.svg)](https://github.com/bramzandbelt/cmdsddfeitc/commits/master) [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.6.0-brightgreen.svg)](https://cran.r-project.org/) [![Task DOI](https://zenodo.org/badge/125838088.svg)](https://zenodo.org/badge/latestdoi/125838088) [![Code licence](https://img.shields.io/github/license/mashape/apistatus.svg)](http://choosealicense.com/licenses/mit/) [![ORCiD](https://img.shields.io/badge/ORCiD-0000--0002--6491--1247-green.svg)](https://orcid.org/0000-0002-6491-1247)
 
 cmdsddfeitc - Research compendium for the report on the cognitive mechanisms of the defer-speedup and date-delay framing effects in intertemporal choice by Zandbelt
 ====================================================================================================================================================================
@@ -18,26 +18,57 @@ Bram Zandbelt (<bramzandbelt@gmail.com>)
 Published in:
 -------------
 
-TBA <!-- TODO: Add psyRxiv DOI -->
+TBA <!-- TODO: Add PsyArXiv DOI and Bibliography
+```
+ 
+```
+-->
 
 Overview
 --------
 
 The packagae `cmdsddfeitc` is a research compendium of the research project *Cognitive Mechanisms of the Defer-Speedup and Date-Delay Framing Effects in Intertemporal Choice* by Bram Zandbelt. This project was conducted at the Donders Institute, Radboud University / Radboucumc, Nijmegen, the Netherlands, and registered at the Donders Centre for Cognitive Neuroimaging under project number (DCCN PI: Roshan Cools).
 
-This research compendium contains all data, code, and text associated with the above-mentioned publication. It is organized as follows:
+This research compendium contains all data, code, and text associated with the above-mentioned publication and is organized as follows:
 
     .
     ├── R
     ├── analysis
+    │   ├── bash
+    │   └── notebooks
     ├── data
+    │   ├── derivatives
+    │   └── raw
     ├── documents
+    │   ├── content
+    │   ├── context
+    │   └── manuscript
     ├── figures
+    │   ├── 01_preprocessing
+    │   ├── 02_exploratory_data_analysis
+    │   ├── 03_computational_modeling_analysis
+    │   ├── 04_sanity_check_control_trial_performance_grp
+    │   ├── 05_eda_grp
+    │   ├── 06_model_comparison_grp
+    │   ├── 07_observed_vs_predicted_performance_grp
+    │   └── 08_analysis_of_model_parameters_grp
     ├── man
     ├── metadata
-    ├── opt
+    │   └── raw
     ├── packrat
+    │   ├── lib
+    │   ├── lib-R
+    │   ├── lib-ext
+    │   └── src
     └── reports
+        ├── 01_preprocessing
+        ├── 02_exploratory_data_analysis
+        ├── 03_computational_modeling_analysis
+        ├── 04_sanity_check_control_trial_performance_grp
+        ├── 05_eda_grp
+        ├── 06_model_comparison_grp
+        ├── 07_observed_vs_predicted_performance_grp
+        └── 08_analysis_of_model_parameters_grp
 
 The `R/` directory contains:
 
@@ -167,6 +198,8 @@ sessionInfo()
 ```
 
 Packrat takes care of dependencies.
+
+Model optimization (notebook) was performed in R 3.5.1. on the Donders Institute computer cluster.
 
 Acknowledgment
 --------------
