@@ -86,8 +86,8 @@ The `data/` directory contains:
 
 The `documents/` directory contains:
 
--   documents describing the content of the experimental data (`content/` directory);
--   documents describing the context of the data (`context/` directory);
+-   documents describing the content of the experimental data (`content/` directory), such as codebooks;
+-   documents describing the context of the data (`context/` directory), such as ethics documents, data management plan, and preregistration;
 -   documents related to the report of this research project (`manuscript/` directory).
 
 The `figures/` directory contains:
