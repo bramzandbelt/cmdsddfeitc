@@ -169,9 +169,28 @@ Model optimization  (notebook) was performed in R 3.5.1. on the Donders Institut
 
 ## Acknowledgment
 
-This research project was funded through European Union’s Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant agreement No. 703141 to Bram B. Zandbelt.
+This research project was funded through European Union’s Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant agreement No. 703141 to Bram B. Zandbelt and through a Vici grant from the Netherlands Organization for Scientific Research (NWO; grant number 453-14-015) to Roshan Cools. I thank Roshan Cools (RC) for financial support and constructive feedback. I thank Ben Marwick for inspiration on [how to create, organize, and describe research compendia](https://github.com/benmarwick/researchcompendium).
 
-Thanks to Ben Marwick for inspiration on [how to create, organize, and describe research compendia](https://github.com/benmarwick/researchcompendium).
+## Contributor roles
+
+We specify the contribution of all people involved in the research (contributing non-authors included), according to the [Contributor Role Taxonomy](https://www.casrai.org/credit/).
+
+|                              | BBZ | RC  |
+| ---------------------------- | --- | --- |
+| Conceptualization            | X   | -   |
+| Methodology                  | X   | -   |
+| Software                     | X   | -   |
+| Validation                   | X   | -   |
+| Formal analysis              | X   | -   |
+| Investigation                | X   | -   |
+| Resources                    | X   | -   |
+| Data curation                | X   | -   |
+| Writing - original draft     | X   | -   |
+| Writing - review and editing | X   | -   |
+| Visualization                | X   | -   |
+| Supervision                  | X   | -   |
+| Project administration       | X   | -   |
+| Funding acquisition          | X   | X   |
 
 ## Contact
 
