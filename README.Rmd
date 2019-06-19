@@ -45,11 +45,48 @@ The packagae `cmdsddfeitc` is a research compendium of the research project _Cog
 
 This research compendium contains all data, code, and text associated with the above-mentioned publication and is organized as follows:
 
-<!-- TODO: Add directory tree
-```
 
 ```
--->
+.
+├── R
+├── analysis
+│   ├── bash
+│   └── notebooks
+├── data
+│   ├── derivatives
+│   └── raw
+├── documents
+│   ├── content
+│   ├── context
+│   └── manuscript
+├── figures
+│   ├── 01_preprocessing
+│   ├── 02_exploratory_data_analysis
+│   ├── 03_computational_modeling_analysis
+│   ├── 04_sanity_check_control_trial_performance_grp
+│   ├── 05_eda_grp
+│   ├── 06_model_comparison_grp
+│   ├── 07_observed_vs_predicted_performance_grp
+│   └── 08_analysis_of_model_parameters_grp
+├── man
+├── metadata
+│   └── raw
+├── packrat
+│   ├── lib
+│   ├── lib-R
+│   ├── lib-ext
+│   └── src
+└── reports
+    ├── 01_preprocessing
+    ├── 02_exploratory_data_analysis
+    ├── 03_computational_modeling_analysis
+    ├── 04_sanity_check_control_trial_performance_grp
+    ├── 05_eda_grp
+    ├── 06_model_comparison_grp
+    ├── 07_observed_vs_predicted_performance_grp
+    └── 08_analysis_of_model_parameters_grp
+```
+
 
 The `R/` directory contains:
 
@@ -127,6 +164,8 @@ sessionInfo()
 ```
 
 Packrat takes care of dependencies.
+
+Model optimization  (notebook) was performed in R 3.5.1. on the Donders Institute computer cluster.
 
 ## Acknowledgment
 

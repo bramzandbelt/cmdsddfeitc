@@ -1,0 +1,469 @@
+---
+params:
+  title: "09_sanity_check_effect_framing_on_model_predicted_auc"
+  task: "date_delay"
+  algorithm: "DEoptimR"
+title: '`r stringr::str_to_title(params$title)`'
+author: "Bram Zandbelt"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  bookdown::html_document2:
+    toc: true
+    number_sections: true
+    fig_caption: true
+    df_print: paged
+    code_folding: hide
+    theme: readable
+    highlight: pygments
+    bibliography: "cmdsddfeitc.bib"
+    biblio-style: author-year
+---
+
+```{r setup, include=FALSE}
+# Set root dir to project directory to ensure that code is always run relative to the project directory, no matter if it is run using `knitr` or interactively.
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+
+# Attach tideverse package to enable access to pipe (%>%)
+require(tidyverse)
+require(brms)
+```
+
+# Overview
+This notebook contains the second set of control analyses, testing whether model predictions replicate the framing effects we intended to explain.
+
+# Preliminaries
+Before reading the data the following is specified:
+
+```{r Define notebook name, based on YAML header}
+notebook_name <- 
+   stringr::str_to_lower(stringr::str_replace_all(params$title, " ", "_"))
+```
+- the _name of the notebook (`notebook_name`)_, which is used to save output to a notebook-specific directory
+
+```{r Define relevant directories for reading and writing data and create whenever needed}
+# Data from computational modeling will be read from here
+model_comparison_group_dir <- 
+  file.path("data","derivatives", "06_model_comparison_group")
+
+bic_aggregate_winning_model_data_dir <- 
+  file.path(model_comparison_group_dir, "winning_models_bic_aggregate")
+
+bic_count_winning_model_data_dir <- 
+  file.path(model_comparison_group_dir, "winning_models_bic_count")
+
+# Derivatives will be written here
+derivatives_dir <- 
+  file.path("data","derivatives", notebook_name)
+
+# Figures will be written here
+figures_dir <- 
+  file.path("figures", notebook_name)
+  
+# Create non-existing dirs if they don't exist
+cmdsddfeitc::check_dir(all_dirs = c(derivatives_dir, figures_dir))
+```
+- all _relevant directories_ for reading and writing data
+
+```{r File names}
+# Determine which files should be read
+  
+
+get_filenames <- function(dir_path, data_type) {
+  if (data_type == "auc") {
+    list.files(path = dir_path, 
+               pattern = sprintf("^auc_task-%s.*%s_BIC.*.csv$",
+                                 params$task[[1]],
+                                 params$algorithm[[1]]
+                                 ),
+               full.names = TRUE
+               )
+  } else if (data_type == "ip") {
+    list.files(path = dir_path, 
+               pattern = sprintf("^predicted_indifference_points_task-%s.*%s_BIC.*.csv$",
+                                 params$task[[1]],
+                                 params$algorithm[[1]]
+                                 ),
+               full.names = TRUE
+               )
+  }
+}
+
+auc_bic_aggregate_filenames <-
+  get_filenames(dir_path = bic_aggregate_winning_model_data_dir,
+                data_type = "auc")
+
+auc_bic_count_filenames <-
+  get_filenames(dir_path = bic_count_winning_model_data_dir,
+                data_type = "auc")
+
+ip_bic_aggregate_filenames <-
+  get_filenames(dir_path = bic_aggregate_winning_model_data_dir,
+                data_type = "ip")
+
+ip_bic_count_filenames <-
+  get_filenames(dir_path = bic_count_winning_model_data_dir,
+                data_type = "ip")
+
+```
+- the _filenames of the files containing the area under the curve data (`auc_filenames`) and optimization statsistics (`optim_stats_filenames`)_
+
+
+```{r Left- and right-hand terms used to calculate the framing effects}
+if (params$task == "defer_speedup") {
+    # Framing effect equals AUC_speedup minus AUC_defer
+    lht <- "speedup"
+    rht <- "defer"
+    xvar <- "defer"
+    yvar <- "speedup"
+    xlab <- "LL choices defer"
+    ylab <- "LL choices speedup"
+    varnames <- c("neutral", "defer", "speedup")
+  
+  } else if (params$task == "date_delay") {
+    # Framing effect equals AUC_date minus AUC_delay
+    lht <- "date"
+    rht <- "delay"
+    
+    xvar <- "delay"
+    yvar <- "date"
+    xlab <- "LL choices delay"
+    ylab <- "LL choices date"
+    varnames <- c("delay", "date")
+  }
+```
+- frames used to compute the framing effect
+
+# Read data
+  
+Having specified all relevant variables, the AUC data are read:
+
+```{r Read data}
+
+read_data <- function(fn, data_type) {
+  
+  col_types_str <- 
+    dplyr::case_when(data_type == "auc" ~ 
+                       stringr::str_c("auc", params$task, sep = "_"),
+                     data_type == "ip" ~ 
+                       stringr::str_c("predicted_ip", params$task, sep = "_"))
+  
+  fn %>% 
+    # Read csv files
+    purrr::map(readr::read_csv, 
+               col_types = cmdsddfeitc::get_col_types(col_types_str)) %>% 
+    # Bind rows
+    purrr::reduce(dplyr::bind_rows)
+
+}
+
+auc_bic_aggregate <- 
+  read_data(fn = auc_bic_aggregate_filenames, data_type = "auc")
+auc_bic_count <- 
+  read_data(fn = auc_bic_count_filenames, data_type = "auc")
+
+ip_bic_aggregate <- 
+  read_data(fn = ip_bic_aggregate_filenames, data_type = "ip")
+ip_bic_count <- 
+  read_data(fn = ip_bic_count_filenames, data_type = "ip")
+
+```
+
+# Preprocess data
+
+## Define some functions
+```{r Define some functions}
+
+# Define function for preprocessing area under the curve data ==================
+
+preprocess_data <- function(auc_data, auc_var = "norm_auc") {
+  
+  frame_levels <- levels(auc_data$frame)
+  
+  # AUC data -------------------------------------------------------------------
+  
+  # When summary_stat equals count, the winning model varies across participants
+  # When summary_stat equals aggregate, the winning model is identical across participants
+  
+  auc_data_wide <- 
+    auc_data %>%
+    dplyr::select(participant_id, frame, !!sym(auc_var)) %>%
+    tidyr::spread(key = frame, value = !!sym(auc_var)) %>%
+    dplyr::mutate(framing_effect = !!sym(lht) - !!sym(rht),
+                  z = (framing_effect - mean(framing_effect)) / sd(framing_effect),
+                  is_outlier = abs(z) > 2.5,
+                  is_negative = framing_effect < 0)
+  
+  # Framing effect data --------------------------------------------------------
+  
+  framing_effect_stat_data <-
+    auc_data_wide %>%
+    dplyr::filter(!is_outlier) %>%
+    dplyr::pull(framing_effect)
+  
+  
+  # # Framing effect - plot data -------------------------------------------------
+  # framing_effect_plot_data <- 
+  #   auc_stat_data %>%
+  #   dplyr::select(participant_id, model, parameterization, framing_effect, z, is_outlier) %>%
+  #   dplyr::mutate(is_negative = framing_effect < 0)
+  
+  # Output ---------------------------------------------------------------------
+  return(list(auc_data_wide = auc_data_wide, 
+              framing_effect_stat_data = framing_effect_stat_data)
+         )
+  
+}
+
+# Define function for computing subjective value from indifference points ======
+compute_sv <- function(tibb) {
+  tibb %>%
+    dplyr::mutate(sv = ip / 43.52)
+}
+
+```
+
+## Preprocess area under the curve data
+
+Area under the curve (AUC) data of best-fitting model overall
+```{r Preprocess area under the curve data of best-fitting model overall }
+preproc_data_bic_aggregate <- 
+  preprocess_data(auc_data = auc_bic_aggregate)
+
+print(preproc_data_bic_aggregate$auc_data_wide)
+```
+
+```{r Preprocess area under the curve data of best-fitting model per individual}
+preproc_data_bic_count <- 
+  preprocess_data(auc_data = auc_bic_count)
+
+print(preproc_data_bic_count$auc_data_wide)
+```
+
+## Compute subjective value from indiffernce points
+
+The are
+Here, we compute those
+
+successive delay-indifference point pairings from the model
+```{r Compute subjective value from indiffernce points from best-fitting model overall}
+ip_bic_aggregate <- 
+  compute_sv(tibb = ip_bic_aggregate)
+
+print(ip_bic_aggregate)
+```
+
+```{r Compute subjective value from indiffernce points from best-fitting model per individual}
+ip_bic_count <- 
+  compute_sv(tibb = ip_bic_count)
+
+print(ip_bic_count)
+```
+
+# Analyze data
+
+We analyze the effect with a one-sided Bayesian t-test using the `BayesFactor` packages. This approach provides a Bayes factor that quantifies the support in the data for one hypothesis (AUC is greater for `r switch(params$task, date_delay = "date vs. speedup framing", defer_speedup = "speedup vs. defer framing")`) as compared to another (AUC does not differ between `r switch(params$task, date_delay = "date vs. speedup framing", defer_speedup = "speedup vs. defer framing")`).
+
+We test these framing effect both for the overall best-fitting model and the best-fitting model per individual.
+
+## Test framing effect based on aggregate BIC
+
+```{r Compute Bayes factor for framing effect based on aggregate BIC}
+BF_result_bic_aggregate <- 
+  BayesFactor::ttestBF(x = preproc_data_bic_aggregate$framing_effect_stat_data,
+                       rscale = 0.55,
+                       nullInterval = c(0,Inf))
+print(BF_result_bic_aggregate)
+```
+
+
+## Test framing effect based on BIC count
+
+```{r Compute Bayes factor for framing effect based on BIC count}
+BF_result_bic_count <- 
+  BayesFactor::ttestBF(x = preproc_data_bic_count$framing_effect_stat_data,
+                       rscale = 0.55,
+                       nullInterval = c(0,Inf))
+
+print(BF_result_bic_count)
+```
+
+# Visualize data
+
+## Area under the curve
+```{r}
+plot_predicted_auc <- function(plot_data, stat_data, exclude_outlier = TRUE) {
+  
+  # Compute Bayes factor =======================================================
+  if (exclude_outlier) {
+    bht_data <- stat_data
+  } else {
+    bht_data <- plot_data$framing_effect
+  }
+  BF <- 
+    BayesFactor::ttestBF(x = bht_data,
+                         rscale = 0.55,
+                         nullInterval = c(0,Inf))
+  
+  # Plot =======================================================================
+  ggplot2::ggplot(data = plot_data,
+                  mapping = ggplot2::aes(x = !!sym(xvar),
+                                         y = !!sym(yvar),
+                                         color = is_outlier)
+                  ) +
+    # Geoms --------------------------------------------------------------------
+    
+    ggplot2::geom_point(shape = 1,
+                        size = 4) +
+    ggplot2::geom_abline(slope = 1, 
+                         intercept = 0,
+                         linetype = "dashed") +
+    
+    # Scales -------------------------------------------------------------------
+    ggplot2::scale_x_continuous(limits = c(0,1),
+                                name = xlab) +
+    ggplot2::scale_y_continuous(limits = c(0,1),
+                                name = ylab) +
+    ggplot2::scale_color_manual(values = c("black", "grey")) +
+      
+    # Annotation ---------------------------------------------------------------
+    ggplot2::annotate(geom = "text",
+                      label = paste("N =", nrow(plot_data)),
+                      x = .95,
+                      y = .10,
+                      hjust = 1,
+                      vjust = 1
+                      ) +
+    
+    ggplot2::annotate(geom = "text",
+                      label = paste("BF =", 
+                                    round(exp(BF@bayesFactor$bf)[[1]], 2)),
+                      x = .95,
+                      y = .05,
+                      hjust = 1,
+                      vjust = 1
+                      ) +
+    
+    # Themes -------------------------------------------------------------------
+    cmdsddfeitc::theme_cmfsddfeitc() +
+    ggplot2::theme(aspect.ratio = 1,
+                   panel.background = ggplot2::element_blank())
+}
+
+plot_predicted_auc(plot_data = preproc_data_bic_aggregate$auc_data_wide,
+                   stat_data = preproc_data_bic_aggregate$framing_effect_stat_data,
+                   exclude_outlier = FALSE)
+
+plot_predicted_auc(plot_data = preproc_data_bic_count$auc_data_wide,
+                   stat_data = preproc_data_bic_count$framing_effect_stat_data,
+                   exclude_outlier = FALSE)
+```
+
+
+## Predicted indifference points
+```{r}
+plot_predicted_ip <- function(tibb) {
+  
+  
+  if (params$task == "defer_speedup") {
+    clrs <- c("darkgrey", "red", "blue")
+  } else if (params$task == "date_delay") {
+    clrs <- c("darkgrey", "blue")
+  }
+  
+  ggplot2::ggplot(data = tibb,
+                  mapping = ggplot2::aes(x = delay,
+                                         y = sv,
+                                         color = frame)) +
+    
+    ggplot2::geom_line(ggplot2::aes(group = interaction(participant_id, frame)),
+                       alpha = 0.1) + 
+    ggplot2::stat_summary(fun.y = "mean", geom = "line",
+                          size = 1.5,
+                          na.rm = TRUE) +
+    
+    # Scales -------------------------------------------------------------------
+    ggplot2::scale_x_continuous(name = "Delay (days)",
+                                breaks = c(0,2,4,8,16,32,64,128),
+                                labels = c("0","","","8","16","32","64","128"),
+                                limits = c(0,128)) +
+    ggplot2::scale_y_continuous(name = "Subjective value",
+                                limits = c(0,1)) +
+    ggplot2::scale_color_manual(values = clrs) +
+    
+    
+    # Annotate -----------------------------------------------------------------
+    
+    # Annotation ---------------------------------------------------------------
+    ggplot2::annotate(geom = "text",
+                      label = paste("N =", nrow(plot_data)),
+                      x = .95,
+                      y = .10,
+                      hjust = 1,
+                      vjust = 1
+                      ) +
+    
+    ggplot2::annotate(geom = "text",
+                      label = paste("BF =", 
+                                    round(exp(BF@bayesFactor$bf)[[1]], 2)),
+                      x = .95,
+                      y = .05,
+                      hjust = 1,
+                      vjust = 1
+                      ) +
+    
+    # Themes -------------------------------------------------------------------
+    cmdsddfeitc::theme_cmfsddfeitc() +
+    ggplot2::theme(panel.background = element_blank(),
+                   panel.grid = ggplot2::element_blank(),
+                   legend.text = ggplot2::element_text(size = 10),
+                   legend.position = "bottom")
+  
+  
+}
+
+plt_prediced_auc_overall_best <- plot_predicted_ip(tibb = ip_bic_aggregate)
+plt_prediced_auc_idv_best <-  plot_predicted_ip(tibb = ip_bic_count)
+
+```
+
+
+```{r}
+plt_prediced_auc_overall_best
+```
+
+
+# Write data to disk
+
+```{r}
+# Save plots to disk ===========================================================
+
+# Resolution (for raster images)
+dpi <- 300
+
+# Make function for saving
+save_figure <- function(fn, plt, wdth) {
+  # As raster image ------------------------------------------------------------
+  ggplot2::ggsave(path = figures_dir,
+                  filename = paste0(fn, ".png"),
+                  plot = plt,
+                  width = wdth,
+                  units = "cm",
+                  dpi = dpi)
+  
+  # As vector image ------------------------------------------------------------
+  ggplot2::ggsave(path = figures_dir,
+                  filename = paste0(fn, ".pdf"),
+                  plot = plt,
+                  width = wdth,
+                  units = "cm")
+}
+
+# Save figure showing distribution of parameter values -------------------------
+save_figure(fn = sprintf("predicted_auc_overall_best_model_task-%s_dpi-%d", 
+                         params$task, 
+                         dpi),
+            plt = plt_prediced_auc_overall_best,
+            wdth = 8.5
+            )
+```
+

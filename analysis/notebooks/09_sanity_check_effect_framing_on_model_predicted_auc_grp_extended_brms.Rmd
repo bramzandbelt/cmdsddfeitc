@@ -1,0 +1,908 @@
+---
+params:
+  title: "09_sanity_check_effect_framing_on_model_predicted_auc"
+  task: "defer_speedup"
+  algorithm: "DEoptimR"
+title: '`r stringr::str_to_title(params$title)`'
+author: "Bram Zandbelt"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  bookdown::html_document2:
+    toc: true
+    number_sections: true
+    fig_caption: true
+    df_print: paged
+    code_folding: hide
+    theme: readable
+    highlight: pygments
+    bibliography: "cmdsddfeitc.bib"
+    biblio-style: author-year
+---
+
+```{r setup, include=FALSE}
+# Set root dir to project directory to ensure that code is always run relative to the project directory, no matter if it is run using `knitr` or interactively.
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+
+# Attach tideverse package to enable access to pipe (%>%)
+require(tidyverse)
+require(brms)
+```
+
+# Overview
+This notebook contains the second set of control analyses, testing whether model predictions replicate the framing effects we intended to explain.
+
+# Preliminaries
+Before reading the data the following is specified:
+
+```{r Define notebook name, based on YAML header}
+notebook_name <- 
+   stringr::str_to_lower(stringr::str_replace_all(params$title, " ", "_"))
+```
+- the _name of the notebook (`notebook_name`)_, which is used to save output to a notebook-specific directory
+
+```{r Define relevant directories for reading and writing data and create whenever needed}
+# Data from computational modeling will be read from here
+model_comparison_group_dir <- 
+  file.path("data","derivatives", "06_model_comparison_group")
+
+bic_aggregate_winning_model_data_dir <- 
+  file.path(model_comparison_group_dir, "winning_models_bic_aggregate")
+
+bic_count_winning_model_data_dir <- 
+  file.path(model_comparison_group_dir, "winning_models_bic_count")
+
+# Derivatives will be written here
+derivatives_dir <- 
+  file.path("data","derivatives", notebook_name)
+
+# Figures will be written here
+figures_dir <- 
+  file.path("figures", notebook_name)
+  
+# Create non-existing dirs if they don't exist
+cmdsddfeitc::check_dir(all_dirs = c(derivatives_dir, figures_dir))
+```
+- all _relevant directories_ for reading and writing data
+
+```{r File names}
+# Determine which files should be read
+  
+
+get_filenames <- function(dir_path, data_type) {
+  if (data_type == "auc") {
+    list.files(path = dir_path, 
+               pattern = sprintf("^auc_task-%s.*%s_BIC.*.csv$",
+                                 params$task[[1]],
+                                 params$algorithm[[1]]
+                                 ),
+               full.names = TRUE
+               )
+  } else if (data_type == "ip") {
+    list.files(path = dir_path, 
+               pattern = sprintf("^predicted_indifference_points_task-%s.*%s_BIC.*.csv$",
+                                 params$task[[1]],
+                                 params$algorithm[[1]]
+                                 ),
+               full.names = TRUE
+               )
+  }
+}
+
+auc_bic_aggregate_filenames <-
+  get_filenames(dir_path = bic_aggregate_winning_model_data_dir,
+                data_type = "auc")
+
+auc_bic_count_filenames <-
+  get_filenames(dir_path = bic_count_winning_model_data_dir,
+                data_type = "auc")
+
+ip_bic_aggregate_filenames <-
+  get_filenames(dir_path = bic_aggregate_winning_model_data_dir,
+                data_type = "ip")
+
+ip_bic_count_filenames <-
+  get_filenames(dir_path = bic_count_winning_model_data_dir,
+                data_type = "ip")
+
+```
+- the _filenames of the files containing the area under the curve data (`auc_filenames`) and optimization statsistics (`optim_stats_filenames`)_
+
+
+```{r Left- and right-hand terms used to calculate the framing effects}
+if (params$task == "defer_speedup") {
+    # Framing effect equals AUC_speedup minus AUC_defer
+    lht <- "speedup"
+    rht <- "defer"
+    xvar <- "defer"
+    yvar <- "speedup"
+    xlab <- "LL choices defer"
+    ylab <- "LL choices speedup"
+    varnames <- c("neutral", "defer", "speedup")
+  
+  } else if (params$task == "date_delay") {
+    # Framing effect equals AUC_date minus AUC_delay
+    lht <- "date"
+    rht <- "delay"
+    
+    xvar <- "delay"
+    yvar <- "date"
+    xlab <- "LL choices delay"
+    ylab <- "LL choices date"
+    varnames <- c("delay", "date")
+  }
+```
+- frames used to compute the framing effect
+
+```{r}
+# source("/Users/bramzandbelt/surfdrive/projects/cmdsddfeitc/opt/VanDoorn/signRankSampler.R")
+```
+<!-- 
+- source code from Johnny van Doorn for Bayesian Wilcoxon signed rank test (code source: [https://osf.io/gny35/](https://osf.io/gny35/), paper: [https://arxiv.org/pdf/1712.06941.pdf](https://arxiv.org/pdf/1712.06941.pdf)) -->
+
+# Read data
+  
+Having specified all relevant variables, the AUC data are read:
+
+```{r Read data}
+
+read_data <- function(fn, data_type) {
+  
+  
+  col_types_str <- 
+    dplyr::case_when(data_type == "auc" ~ 
+                       stringr::str_c("auc", params$task, sep = "_"),
+                     data_type == "ip" ~ 
+                       stringr::str_c("predicted_ip", params$task, sep = "_"))
+  
+  fn %>% 
+    # Read csv files
+    purrr::map(readr::read_csv, 
+               col_types = cmdsddfeitc::get_col_types(col_types_str)) %>% 
+    # Bind rows
+    purrr::reduce(dplyr::bind_rows)
+
+}
+
+auc_bic_aggregate <- 
+  read_data(fn = auc_bic_aggregate_filenames, data_type = "auc")
+auc_bic_count <- 
+  read_data(fn = auc_bic_count_filenames, data_type = "auc")
+
+ip_bic_aggregate <- 
+  read_data(fn = ip_bic_aggregate_filenames, data_type = "ip")
+ip_bic_count <- 
+  read_data(fn = ip_bic_count_filenames, data_type = "ip")
+
+```
+
+# Preprocess data
+
+## Define some functions
+```{r Define some functions}
+
+# Define function for preprocessing area under the curve data ==================
+
+preprocess_data <- function(auc_data, auc_var = "norm_auc") {
+  
+  frame_levels <- levels(auc_data$frame)
+  
+  # AUC data -------------------------------------------------------------------
+  
+  # When summary_stat equals count, the winning model varies across participants
+  # When summary_stat equals aggregate, the winning model is identical across participants
+  
+  auc_data_wide <- 
+    auc_data %>%
+    dplyr::select(participant_id, frame, !!sym(auc_var)) %>%
+    tidyr::spread(key = frame, value = !!sym(auc_var)) %>%
+    dplyr::mutate(framing_effect = !!sym(lht) - !!sym(rht),
+                  z = (framing_effect - mean(framing_effect)) / sd(framing_effect),
+                  is_outlier = abs(z) > 2.5,
+                  is_negative = framing_effect < 0)
+  
+  # Framing effect data --------------------------------------------------------
+  
+  framing_effect_stat_data <-
+    auc_data_wide %>%
+    dplyr::filter(!is_outlier) %>%
+    dplyr::pull(framing_effect)
+  
+  
+  # # Framing effect - plot data -------------------------------------------------
+  # framing_effect_plot_data <- 
+  #   auc_stat_data %>%
+  #   dplyr::select(participant_id, model, parameterization, framing_effect, z, is_outlier) %>%
+  #   dplyr::mutate(is_negative = framing_effect < 0)
+  
+  # Output ---------------------------------------------------------------------
+  return(list(auc_data_wide = auc_data_wide, 
+              framing_effect_stat_data = framing_effect_stat_data)
+         )
+  
+}
+
+# Define function for computing subjective value from indifference points ======
+compute_sv <- function(tibb) {
+  tibb %>%
+    dplyr::mutate(sv = ip / 43.52)
+}
+
+```
+
+## Preprocess area under the curve data
+
+```{r Preprocess area under the curve data of best-fitting model overall }
+preproc_data_bic_aggregate <- 
+  preprocess_data(auc_data = auc_bic_aggregate)
+
+print(preproc_data_bic_aggregate$auc_data_wide)
+```
+
+```{r Preprocess area under the curve data of best-fitting model per individual}
+preproc_data_bic_count <- 
+  preprocess_data(auc_data = auc_bic_count)
+
+print(preproc_data_bic_count$auc_data_wide)
+```
+
+## Compute subjective value from indifference points
+
+```{r Compute subjective value from indiffernce points from best-fitting model overall}
+ip_bic_aggregate <- 
+  compute_sv(tibb = ip_bic_aggregate)
+
+print(ip_bic_aggregate)
+```
+
+```{r Compute subjective value from indiffernce points from best-fitting model per individual}
+ip_bic_count <- 
+  compute_sv(tibb = ip_bic_count)
+
+print(ip_bic_count)
+```
+
+## Determine if the data is normally distributed
+
+Make some functions for making Q-Q plots and testing whether the data is better explained by a parametric vs. nonparametric (ranking) model.
+
+
+Is the framing effect normally distributed?
+```{r Visualize the data to see whether it is normally distributed}
+
+signed_rank = function(x) sign(x) * rank(abs(x))
+
+qq_plot_normality_test <- function(data_vec) {
+  
+  # Convert vector of doubles to dataframe
+  test_data <- data.frame(framing_effect = data_vec)
+  
+  # Plot of untransformed data
+  plt_left <- 
+    # General design
+    ggplot2::ggplot(data = test_data,
+                    mapping = ggplot2::aes(sample = framing_effect)) +
+    ggplot2::stat_qq() +
+    ggplot2::stat_qq_line() +
+    ggplot2::ggtitle("Untransformed") +
+    cmdsddfeitc::theme_cmfsddfeitc()
+  
+  
+  # Plot of signed-ranked data
+  plt_right <- 
+    ggplot2::ggplot(data = test_data,
+                    mapping = ggplot2::aes(sample = signed_rank(framing_effect))) +
+    ggplot2::stat_qq() +
+    ggplot2::stat_qq_line() +
+    ggplot2::ggtitle("Sign-rank transformed") +
+    cmdsddfeitc::theme_cmfsddfeitc()
+  
+  # Combine the two plots
+  cowplot::plot_grid(plt_left, plt_right, nrow = 1)
+}
+
+normality_fit_model_comparison <- function(data_vec) {
+  
+  # Convert vector of doubles to dataframe
+  test_data <- data.frame(framing_effect = data_vec)
+  
+  # JZS prior as the BayesFactor package (see Jonas Lindeloev blog)
+  priors_intercept <- c(brms::set_prior('cauchy(0, 0.55)', class = 'Intercept'))
+  
+  param_fit <- 
+    brms::brm(framing_effect ~ 1, 
+              data = test_data, 
+              prior = priors_intercept, 
+              save_all_pars = TRUE, 
+              iter = 10000)
+  nonparam_fit <- 
+    brms::brm(signed_rank(framing_effect) ~ 1, 
+              data = test_data, 
+              prior = priors_intercept, 
+              save_all_pars = TRUE, 
+              iter = 10000)
+  
+  
+  # Model fit summary and plots ------------------------------------------------
+  
+  sum_param_fit <- summary(param_fit)
+  sum_nonparam_fit <- summary(nonparam_fit)
+  plt_param_fit <- plot(param_fit)
+  plt_nonparam_fit <- plot(nonparam_fit)
+  
+  # Compare models to see which fit the data best ------------------------------
+  model_comparison <-
+    brms::bayes_factor(param_fit, nonparam_fit)
+  
+  # Determine which test is most appropriate -----------------------------------
+  if (model_comparison$bf < 1/6) {
+    test_to_use <- "nonparametric"
+  } else if (model_comparison$bf > 6) {
+    test_to_use <- "parametric"
+  } else {
+    test_to_use <- "nonparametric"
+  }
+  
+  # Output ---------------------------------------------------------------------
+  return(list(param_fit = param_fit, 
+              nonparam_fit = nonparam_fit,
+              sum_param_fit = sum_param_fit,
+              sum_nonparam_fit = sum_nonparam_fit,
+              plt_param_fit = plt_param_fit,
+              plt_nonparam_fit = plt_nonparam_fit,
+              model_comparison = model_comparison,
+              bayes_factor = model_comparison$bf,
+              test_to_use = test_to_use
+              ))
+}
+
+
+```
+
+Q-Q plot for BIC aggregate data
+```{r}
+qq_plot_normality_test(data_vec = preproc_data_bic_aggregate$auc_data_wide$framing_effect)
+```
+
+Q-Q plot for BIC count data
+```{r}
+qq_plot_normality_test(data_vec = preproc_data_bic_count$auc_data_wide$framing_effect)
+```
+
+
+
+We can test this by determining whether the data is fitted better by a normal model on the raw data or a normal model on the ranks. If the latter model is better.
+
+
+```{r Fit parametric and nonparametric models and determine which accounts best for the BIC aggregate data}
+# Fit parametric and nonparametric models and determine which accounts best for the data
+normality_fit_model_comparison_results_bic_aggregate <- 
+  normality_fit_model_comparison(data_vec = preproc_data_bic_aggregate$auc_data_wide$framing_effect)
+
+# Look at the results
+print(
+  sprintf(
+    "Estimated Bayes factor in favor of parametric over parametric model: %.2f", 
+    normality_fit_model_comparison_results_bic_aggregate$bayes_factor))
+              
+              
+
+print(sprintf("Test to use for assessing framing effects: %s test", 
+              normality_fit_model_comparison_results_bic_aggregate$test_to_use))
+
+```
+
+```{r Fit parametric and nonparametric models and determine which accounts best for the BIC count data}
+# Fit parametric and nonparametric models and determine which accounts best for the data
+normality_fit_model_comparison_results_bic_count <- 
+  normality_fit_model_comparison(data_vec = preproc_data_bic_count$auc_data_wide$framing_effect)
+
+# Look at the results
+print(
+  sprintf(
+    "Estimated Bayes factor in favor of parametric over parametric model: %.2f", 
+    normality_fit_model_comparison_results_bic_count$bayes_factor))
+              
+print(sprintf("Test to use for assessing framing effects: %s test", 
+              normality_fit_model_comparison_results_bic_count$test_to_use))
+
+```
+
+
+```{r}
+priors_intercept = c(brms::set_prior('cauchy(0, 0.55)', class = 'Intercept'))  # JZS prior as the BayesFactor package, though without the Jeffreys prior on Sigma for simplicity.
+
+fe_BIC_aggregate <- data.frame(framing_effect = preproc_data_bic_aggregate$auc_data_wide$framing_effect)
+fe_BIC_count <- data.frame(framing_effect = preproc_data_bic_count$auc_data_wide$framing_effect)
+```
+
+
+
+Bayesian one-sample t-test - BIC aggregate data
+
+```{r}
+BayesFactor::ttestBF(x = fe_BIC_aggregate$framing_effect,
+                     rscale = 0.55, 
+                     nullInterval = c(0, Inf)
+                     )
+```
+
+Bayesian one-sample t-test - BIC count data
+```{r}
+BayesFactor::ttestBF(x = fe_BIC_count$framing_effect,
+                     rscale = 0.55, 
+                     nullInterval = c(0, Inf)
+                     )
+```
+
+
+Bayesian Wilcoxon signed-rank test - BIC aggregate data
+
+```{r}
+full_brms_np_BIC_aggregate <-
+  brms::brm(signed_rank(framing_effect) ~ 1, 
+            data = fe_BIC_aggregate, 
+            prior = priors_intercept, 
+            save_all_pars = TRUE, 
+            iter = 10000)
+null_brms_np_BIC_aggregate <- 
+  brms::brm(signed_rank(framing_effect) ~ 0, 
+            data = fe_BIC_aggregate, 
+            save_all_pars = TRUE, 
+            iter = 10000)
+
+BF_brms_bridge_np_BIC_aggregate = bayes_factor(full_brms_np_BIC_aggregate, null_brms_np_BIC_aggregate)
+BF_brms_bridge_np_BIC_aggregate$bf
+```
+
+Bayesian Wilcoxon signed-rank test - BIC count data
+
+```{r}
+full_brms_np_BIC_count <-
+  brms::brm(signed_rank(framing_effect) ~ 1, 
+            data = fe_BIC_count, 
+            prior = priors_intercept, 
+            save_all_pars = TRUE, 
+            iter = 10000)
+null_brms_np_BIC_count <- 
+  brms::brm(signed_rank(framing_effect) ~ 0, 
+            data = fe_BIC_count, 
+            save_all_pars = TRUE, 
+            iter = 10000)
+
+BF_brms_bridge_np_BIC_count = bayes_factor(full_brms_np_BIC_count, null_brms_np_BIC_count)
+BF_brms_bridge_np_BIC_count$bf
+```
+
+Bayesian one-sample t-test using brms - BIC aggregate data
+```{r}
+full_brms_p_BIC_aggregate <-
+  brms::brm(framing_effect ~ 1, 
+            data = fe_BIC_aggregate, 
+            prior = priors_intercept, 
+            save_all_pars = TRUE, 
+            iter = 10000)
+null_brms_p_BIC_aggregate <- 
+  brms::brm(framing_effect ~ 0, 
+            data = fe_BIC_aggregate, 
+            save_all_pars = TRUE, 
+            iter = 10000)
+
+BF_brms_bridge_p_BIC_aggregate = bayes_factor(full_brms_p_BIC_aggregate, null_brms_p_BIC_aggregate)
+BF_brms_bridge_p_BIC_aggregate$bf
+```
+
+
+```{r}
+full_brms_p_BIC_count <-
+  brms::brm(framing_effect ~ 1, 
+            data = fe_BIC_count, 
+            prior = priors_intercept, 
+            save_all_pars = TRUE, 
+            iter = 10000)
+null_brms_p_BIC_count <- 
+  brms::brm(framing_effect ~ 0, 
+            data = fe_BIC_count, 
+            save_all_pars = TRUE, 
+            iter = 10000)
+
+BF_brms_bridge_p_BIC_count = bayes_factor(full_brms_p_BIC_count, null_brms_p_BIC_count)
+BF_brms_bridge_p_BIC_count$bf
+```
+
+
+__Q: should we center and scale the data before running the models? What happens in BayesFactor package?__
+
+
+```{r}
+# Jonas Lindeløv's approach
+signed_rank = function(x) sign(x) * rank(abs(x))
+
+
+my_data <- data.frame(framing_effect = preproc_data_bic_aggregate$auc_data_wide$framing_effect)
+
+priors_intercept = c(brms::set_prior('cauchy(0, 0.55)', class = 'Intercept'))  # JZS prior as the BayesFactor package, though without the Jeffreys prior on Sigma for simplicity.
+  
+full_brms = brm(signed_rank(framing_effect) ~ 1, data = my_data, prior = priors_intercept, save_all_pars = TRUE, iter=10000)
+null_brms = brm(signed_rank(framing_effect) ~ 0, data = my_data, save_all_pars = TRUE, iter = 10000)
+
+```
+
+
+```{r}
+BF_brms_bridge = bayes_factor(full_brms, null_brms)
+BF_brms_bridge$bf
+```
+
+
+
+
+
+
+Do normality test for overall BIC model
+```{r}
+
+
+
+# Fit parametric and nonparametric models
+normality_test_data_bic_aggregate <- 
+  normality_fit(data_vec = preproc_data_bic_aggregate$auc_data_wide$framing_effect)
+
+# Show summary and plots of model fits -----------------------------------------
+
+summary(normality_test_data_bic_aggregate$param_fit)
+plot(normality_test_data_bic_aggregate$param_fit)
+summary(normality_test_data_bic_aggregate$nonparam_fit)
+plot(normality_test_data_bic_aggregate$nonparam_fit)
+
+# Compare model to see which one fit the data best -----------------------------
+normality_test_model_comparison_bic_aggregate <- 
+  brms::bayes_factor(normality_test_data_bic_aggregate$param_fit,
+                     normality_test_data_bic_aggregate$nonparam_fit)
+normality_test_model_comparison_bic_aggregate$bf
+
+# Based on Bayes factor, determine what test to use to assess framing effects
+if (normality_test_model_comparison_bic_aggregate$bf < 1/6) {
+  test_to_use_on_bic_aggregate_data <- "nonparametric"
+} else if (normality_test_model_comparison_bic_aggregate$bf < 6) {
+  test_to_use_on_bic_aggregate_data <- "parametric"
+} else {
+  # In other words, also use nonparametric test if the data do not strongly favor one model over another
+  test_to_use_on_bic_aggregate_data <- "nonparametric"
+}
+```
+
+
+
+Now, test whether model's predicted framing effect is in line with previous literature
+```{r}
+
+
+
+```
+
+
+
+If it is not, try 
+```{r}
+
+# x <- preproc_data_bic_aggregate$auc_data_wide$framing_effect
+# sROut_ultrawide <- signRankGibbsSampler(xVals = x, progBar = TRUE, cauchyPriorParameter = sqrt(2))
+# sROut_wide <- signRankGibbsSampler(xVals = x, progBar = TRUE)
+# sROut_est <- signRankGibbsSampler(xVals = x, progBar = TRUE, cauchyPriorParameter = 0.55)
+
+cauchy_type <- "normal"
+
+d <- switch (cauchy_type,
+             ultrawide = sROut_ultrawide$deltaSamples,
+             wide = sROut_wide$deltaSamples,
+             normal = sROut_est$deltaSamples
+             )
+
+delta_samples <- tibble::tibble(d = d)
+
+ggplot2::qplot(data = delta_samples,
+               d) +
+  ggplot2::geom_freqpoly()
+
+
+
+
+# Compute density at delta = 0 under posterior
+
+# Compute density at delta = 0 under prior
+
+# Compute BayesFactor
+
+```
+
+```{r}
+# Jonas Lindeløv's approach
+signed_rank = function(x) sign(x) * rank(abs(x))
+
+
+my_data <- data.frame(framing_effect = preproc_data_bic_aggregate$auc_data_wide$framing_effect)
+
+priors_intercept = c(brms::set_prior('cauchy(0, 0.55)', class = 'Intercept'))  # JZS prior as the BayesFactor package, though without the Jeffreys prior on Sigma for simplicity.
+  
+full_brms = brm(signed_rank(framing_effect) ~ 1, data = my_data, prior = priors_intercept, save_all_pars = TRUE, iter=10000)
+null_brms = brm(signed_rank(framing_effect) ~ 0, data = my_data, save_all_pars = TRUE, iter = 10000)
+
+```
+
+
+```{r}
+BF_brms_bridge = bayes_factor(full_brms, null_brms)
+BF_brms_bridge$bf
+```
+
+
+```{r}
+
+# Try a logit transform
+transform_data <- function(p, transformation = "logit") { 
+
+  # Adjust values close to 0 or 1 to prevent that transformation returns Inf
+  if (transformation == "logit") {
+    log(p) / (1 - p) 
+  } else if (transformation == "log") {
+    log(p)
+  } else if (transformation == "sqrt") {
+    sqrt(p)
+  } else if (transformation == "reciprocal") {
+    1 / p
+  }
+  
+  
+  }
+
+adjust_auc <- function(.vars) {
+  dplyr::case_when(.vars > 0.9999 ~ 0.9999,
+                   .vars < 0.0001 ~ 0.0001,
+                   (.vars < 0.9999 & .vars > 0.0001) ~ as.double(.vars))
+                   
+}
+
+trnsfrmd_auc <- 
+  preproc_data_bic_aggregate$auc_data_wide %>%
+  dplyr::select(-framing_effect, -z, -is_outlier, -is_negative) %>%
+  dplyr::mutate_at(.vars = vars(-participant_id), .funs = adjust_auc) %>%
+  # Apply logit transform
+  dplyr::mutate_at(vars(-participant_id), .funs = transform_data, transformation = "logit") %>%
+  # Make long
+  tidyr::gather(key = "frame", value = "transformed_auc", varnames)
+  
+preproc_transformed_data_bic_aggregate <- 
+  preprocess_data(auc_data = trnsfrmd_auc,
+                  auc_var = "transformed_auc") 
+
+# Now look at data to see if approximately normal
+ggplot2::ggplot(data = preproc_transformed_data_bic_aggregate$auc_data_wide %>% dplyr::filter(!is_outlier),
+                mapping = ggplot2::aes(sample = framing_effect,
+                                       color = is_outlier)) +
+  ggplot2::stat_qq()
+
+# Test whether data are normally distributed
+htest_transform <- 
+  shapiro.test(preproc_transformed_data_bic_aggregate$framing_effect) %>%
+  print()
+
+if (htest_transform$p.value > 0.05) {
+  # Test framing effect
+  BayesFactor::ttestBF(x = preproc_transformed_data_bic_aggregate$framing_effect_stat_data, 
+                       rscale = 0.55, 
+                       nullInterval = c(0, Inf))
+}
+
+
+  
+
+
+  
+```
+
+
+```{r}
+ggplot2::ggplot(data = preproc_transformed_data_bic_aggregate$auc_data_wide,
+                  mapping = ggplot2::aes(sample = framing_effect)) +
+    ggplot2::stat_qq()
+```
+
+
+
+# Analyze data
+
+
+If the framing effect on AUC is normally distributed, we analyze the effect with a one-sided Bayesian t-test using the `BayesFactor` packages. If it is not normally distributed, we cannot use this test and packages and instead use a one-sided Bayesian Wilcoxon signed rank test, using the `brms` and `bridgsampling` packages (see the following posts by Jonas Lindeløv: []() and []()).
+
+Both approaches provide a Bayes factor that quantifies the support in the data for one hypothesis (
+AUC is greater for `r switch(params$task, date_delay = "date vs. speedup framing", defer_speedup = "speedup vs. defer framing")`) as compared to another (AUC does not differ between `r switch(params$task, date_delay = "date vs. speedup framing", defer_speedup = "speedup vs. defer framing")`).
+
+We test these framing effect both for the overall best-fitting model and the best-fitting model per individual.
+
+## Test framing effect based on aggregate BIC
+
+```{r Compute Bayes factor for framing effect based on aggregate BIC}
+BF_result_bic_aggregate <- 
+  BayesFactor::ttestBF(x = preproc_data_bic_aggregate$framing_effect_stat_data,
+                       rscale = 0.55,
+                       nullInterval = c(0,Inf))
+print(BF_result_bic_aggregate)
+```
+
+
+## Test framing effect based on BIC count
+
+```{r Compute Bayes factor for framing effect based on BIC count}
+BF_result_bic_count <- 
+  BayesFactor::ttestBF(x = preproc_data_bic_count$framing_effect_stat_data,
+                       rscale = 0.55,
+                       nullInterval = c(0,Inf))
+
+print(BF_result_bic_count)
+```
+
+# Visualize data
+
+
+## Area under the curve
+```{r}
+plot_predicted_auc <- function(plot_data, stat_data, exclude_outlier = TRUE) {
+  
+  # Compute Bayes factor =======================================================
+  if (exclude_outlier) {
+    bht_data <- stat_data
+  } else {
+    bht_data <- plot_data$framing_effect
+  }
+  BF <- 
+    BayesFactor::ttestBF(x = bht_data,
+                         rscale = 0.55,
+                         nullInterval = c(0,Inf))
+  
+  # Plot =======================================================================
+  ggplot2::ggplot(data = plot_data,
+                  mapping = ggplot2::aes(x = !!sym(xvar),
+                                         y = !!sym(yvar),
+                                         color = is_outlier)
+                  ) +
+    # Geoms --------------------------------------------------------------------
+    
+    ggplot2::geom_point(shape = 1,
+                        size = 4) +
+    ggplot2::geom_abline(slope = 1, 
+                         intercept = 0,
+                         linetype = "dashed") +
+    
+    # Scales -------------------------------------------------------------------
+    ggplot2::scale_x_continuous(limits = c(0,1),
+                                name = xlab) +
+    ggplot2::scale_y_continuous(limits = c(0,1),
+                                name = ylab) +
+    ggplot2::scale_color_manual(values = c("black", "grey")) +
+      
+    # Annotation ---------------------------------------------------------------
+    ggplot2::annotate(geom = "text",
+                      label = paste("N =", nrow(plot_data)),
+                      x = .95,
+                      y = .10,
+                      hjust = 1,
+                      vjust = 1
+                      ) +
+    
+    ggplot2::annotate(geom = "text",
+                      label = paste("BF =", 
+                                    round(exp(BF@bayesFactor$bf)[[1]], 2)),
+                      x = .95,
+                      y = .05,
+                      hjust = 1,
+                      vjust = 1
+                      ) +
+    
+    # Themes -------------------------------------------------------------------
+    cmdsddfeitc::theme_cmfsddfeitc() +
+    ggplot2::theme(aspect.ratio = 1,
+                   panel.background = ggplot2::element_blank())
+}
+
+plot_predicted_auc(plot_data = preproc_data_bic_aggregate$auc_data_wide,
+                   stat_data = preproc_data_bic_aggregate$framing_effect_stat_data,
+                   exclude_outlier = FALSE)
+
+plot_predicted_auc(plot_data = preproc_data_bic_count$auc_data_wide,
+                   stat_data = preproc_data_bic_count$framing_effect_stat_data,
+                   exclude_outlier = FALSE)
+```
+
+
+## Predicted indifference points
+```{r}
+plot_predicted_ip <- function(tibb) {
+  
+  
+  if (params$task == "defer_speedup") {
+    clrs <- c("darkgrey", "red", "blue")
+  } else if (params$task == "date_delay") {
+    clrs <- c("darkgrey", "blue")
+  }
+  
+  ggplot2::ggplot(data = tibb,
+                  mapping = ggplot2::aes(x = delay,
+                                         y = sv,
+                                         color = frame)) +
+    
+    ggplot2::geom_line(ggplot2::aes(group = interaction(participant_id, frame)),
+                       alpha = 0.1) + 
+    ggplot2::stat_summary(fun.y = "mean", geom = "line",
+                          size = 1.5,
+                          na.rm = TRUE) +
+    
+    # Scales -------------------------------------------------------------------
+    ggplot2::scale_x_continuous(name = "Delay (days)",
+                                breaks = c(0,2,4,8,16,32,64,128),
+                                labels = c("0","","","8","16","32","64","128"),
+                                limits = c(0,128)) +
+    ggplot2::scale_y_continuous(name = "Subjective value",
+                                limits = c(0,1)) +
+    ggplot2::scale_color_manual(values = clrs) +
+    
+    
+    # Annotate -----------------------------------------------------------------
+    
+    # Add Bayes factor
+    
+    # Themes -------------------------------------------------------------------
+    cmdsddfeitc::theme_cmfsddfeitc() +
+    ggplot2::theme(panel.background = element_blank(),
+                   panel.grid = ggplot2::element_blank(),
+                   legend.text = ggplot2::element_text(size = 10),
+                   legend.position = "bottom")
+  
+  
+}
+
+plt_prediced_auc_overall_best <- plot_predicted_ip(tibb = ip_bic_aggregate)
+plt_prediced_auc_idv_best <-  plot_predicted_ip(tibb = ip_bic_count)
+
+```
+
+
+```{r}
+plt_prediced_auc_overall_best
+```
+
+
+# Write data to disk
+
+```{r}
+# Save plots to disk ===========================================================
+
+# Resolution (for raster images)
+dpi <- 300
+
+# Make function for saving
+save_figure <- function(fn, plt, wdth) {
+  # As raster image ------------------------------------------------------------
+  ggplot2::ggsave(path = figures_dir,
+                  filename = paste0(fn, ".png"),
+                  plot = plt,
+                  width = wdth,
+                  units = "cm",
+                  dpi = dpi)
+  
+  # As vector image ------------------------------------------------------------
+  ggplot2::ggsave(path = figures_dir,
+                  filename = paste0(fn, ".pdf"),
+                  plot = plt,
+                  width = wdth,
+                  units = "cm")
+}
+
+# Save figure showing distribution of parameter values -------------------------
+save_figure(fn = sprintf("predicted_auc_overall_best_model_task-%s_dpi-%d", 
+                         params$task, 
+                         dpi),
+            plt = plt_prediced_auc_overall_best,
+            wdth = 8.5
+            )
+```
+

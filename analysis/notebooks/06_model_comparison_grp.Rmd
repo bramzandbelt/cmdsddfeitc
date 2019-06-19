@@ -1,0 +1,545 @@
+---
+params:
+  title: "06_model_comparison_grp"
+  task: "date_delay"
+  algorithm: "DEoptimR"
+title: '`r stringr::str_to_title(stringr::str_replace_all(params$title, pattern = "_", replacement = " "))`'
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    number_sections: true
+    fig_caption: true
+    df_print: paged
+    code_folding: hide
+    theme: readable
+    highlight: pygments
+    bibliography: "cmdsddfeitc.bib"
+    biblio-style: author-year
+---
+
+```{r setup, include=FALSE}
+# Set root dir to project directory to ensure that code is always run relative to the project directory, no matter if it is run using `knitr` or interactively.
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+knitr::opts_knit$set(eval.after = 'fig.cap')
+
+# Attach tideverse package to enable access to pipe (%>%)
+require(tidyverse)
+```
+
+# Overview
+
+The different models and parameterizations have been fit to data from individual participants in the notebook `03_computational_modeling_analysis`. The present notebook contains the model comparison analyses, assessing which model and parameterization best accounts for the intertemporal choices, response times, and framing effects observed across participants. It identifies the models and parameterizations that accounted best for the data overall, and in how many participants each model and parameterization was the best-fitting model.
+
+# Preliminaries
+Before reading the data the following is specified:
+
+```{r Define notebook name, based on YAML header}
+notebook_name <- 
+   stringr::str_to_lower(stringr::str_replace_all(params$title, " ", "_"))
+```
+- the _name of the notebook (`notebook_name`)_, which is used to save output to a notebook-specific directory
+
+```{r Define relevant directories for reading and writing data and create whenever needed}
+# Raw trial log files are read from here
+preprocessed_data_dir <- 
+  file.path("data","derivatives", "01_preprocessing", "included")
+
+# Data from computational modeling will be read from here
+modeled_data_dir <- 
+  file.path("data","derivatives", "03_computational_modeling_analysis", "converged")
+
+# Derivatives will be written here
+model_comparison_group_dir <- 
+  file.path("data","derivatives", notebook_name)
+
+bic_aggregate_winning_model_data_dir <- 
+  file.path(model_comparison_group_dir, "winning_models_bic_aggregate")
+
+bic_count_winning_model_data_dir <- 
+  file.path(model_comparison_group_dir, "winning_models_bic_count")
+
+# Figures displaying the first-level computational modeling results are read from here
+computational_modeling_idv_figures_dir <- 
+  file.path("figures", "03_computational_modeling_analysis")
+
+# Figures will be written here
+figures_dir <- 
+  file.path("figures", notebook_name)
+
+# Figures displaying first-level computational modeling results of winning models are copied here
+bic_aggregate_winning_model_figures_dir <- 
+  file.path(figures_dir, "winning_models_bic_aggregate")
+
+bic_count_winning_model_figures_dir <- 
+  file.path(figures_dir, "winning_models_bic_count")
+
+# Create non-existing dirs if they don't exist
+cmdsddfeitc::check_dir(all_dirs = c(preprocessed_data_dir, modeled_data_dir, 
+                                    model_comparison_group_dir, 
+                                    bic_aggregate_winning_model_data_dir,
+                                    bic_count_winning_model_data_dir,
+                                    figures_dir,
+                                    bic_aggregate_winning_model_figures_dir,
+                                    bic_count_winning_model_figures_dir)
+                       )
+```
+- all _relevant directories_ for reading and writing data
+
+```{r File names}
+# Determine which files should be read
+auc_filenames <- 
+  list.files(path = modeled_data_dir, 
+             pattern = sprintf("^auc_task-%s.*%s_BIC.*.csv$",
+                               params$task[[1]],
+                               params$algorithm[[1]]
+                               )
+             )
+
+optim_stats_filenames <- 
+  list.files(path = modeled_data_dir, 
+             pattern = sprintf("^optim_stats_task-%s.*%s_BIC.*.csv$",
+                               params$task[[1]],
+                               params$algorithm[[1]]
+                               )
+             )
+
+best_fit_params_filenames <- 
+  list.files(path = modeled_data_dir, 
+             pattern = sprintf("best_fitting_params_task-%s.*%s_BIC.*.csv",
+                               params$task[[1]],
+                               params$algorithm[[1]]
+                               )
+             )
+```
+- the _filenames of the files containing the area under the curve data (`auc_filenames`) and optimization statsistics (`optim_stats_filenames`)_
+
+# Read data
+Having specified all relevant variables, the AUC data and optimization statistics are read:
+
+```{r Read participant-level optimization statistics, cols.print=10, rows.print=24}
+
+# Optimization statistics
+optim_stats <- tibble::tibble()
+
+for (i_file in 1:length(optim_stats_filenames)) {
+  optim_stats <- 
+    dplyr::bind_rows(optim_stats,
+                     readr::read_csv(file = file.path(modeled_data_dir, optim_stats_filenames[[i_file]]),
+                                     col_types = cmdsddfeitc::get_col_types(stringr::str_c("optim_stats_",
+                                                                                           params$task)))
+                     )
+}
+
+# Print for inspection
+optim_stats
+```
+
+# Preprocess data
+
+## For model comparison purposes
+
+For model comparison purposes, the aggregate BIC value needs to be calculated (if `summary_stat = "aggregate"`) for identifying the best-fitting model overall and the BIC count value needs to be calculated (if `summary_stat = "count"`) to determine how often a model is the best-fitting model per individual.
+
+```{r Define function for model comparison}
+# ----------------------------------------------------------------------------
+compute_model_selection_stat <- function(optim_stats, input_stat = "BIC", summary_stat = "aggregate") {
+  
+  # Preliminaries --------------------------------------------------------------
+  assertthat::assert_that(input_stat %in% c("AIC", "BIC"),
+                          msg = "input_stat can take the following values: 'AIC', 'BIC'.")
+  assertthat::assert_that(summary_stat %in% c("aggregate", "count"),
+                          msg = "summary_stat can take the following values: 'aggregate', 'count'.")
+  
+  summary_stat_key = stringr::str_c(input_stat, summary_stat, sep = "_")
+  pmz_levels <- as.character(unique(optim_stats$parameterization))
+  model_levels <- as.character(unique(optim_stats$model))
+  
+  
+  # Model selection ------------------------------------------------------------
+  
+  # 1. Remove participants with missing data (i.e. models that are not fit)
+  tidy_optim_stats <- 
+    optim_stats %>%
+    dplyr::select(-bound_settings, -n_iter) %>% 
+        tidyr::unite(col = "united_col", LL, AIC, BIC, LL) %>% 
+        tidyr::spread(key = parameterization, value = united_col) %>% 
+        tidyr::drop_na()
+    
+    if (params$task == "defer_speedup") {
+      tidy_optim_stats <- 
+        tidy_optim_stats %>%
+        tidyr::gather(key = "parameterization", 
+                      value = "united_col", 
+                      pmz_levels, 
+                      factor_key = TRUE)
+    } else if (params$task == "date_delay") {
+      tidy_optim_stats <- 
+        tidy_optim_stats %>%
+        tidyr::gather(key = "parameterization", 
+                      value = "united_col", 
+                      pmz_levels, 
+                      factor_key = TRUE)
+    }
+    
+  tidy_optim_stats <- 
+    tidy_optim_stats %>%
+    tidyr::separate(col = united_col, 
+                    into = c("LL", "AIC", "BIC"),
+                    sep = "_",
+                    convert = TRUE)
+  
+  # 2. Filter & select relevant model selection (summary) statistics
+  if (summary_stat == "count") {
+    
+    varname <- paste0("d", input_stat) 
+    
+    ms_stat_data <- 
+      tidy_optim_stats %>%
+      dplyr::select(participant_id, model, parameterization, !!dplyr::sym(input_stat)) %>%
+      dplyr::group_by(participant_id) %>%
+      dplyr::arrange(., participant_id, !!dplyr::sym(input_stat)) %>%
+      # Compute BIC score relative to best model for each individual: dBIC
+      dplyr::mutate(!!varname := !!dplyr::sym(input_stat) - dplyr::first(!!dplyr::sym(input_stat))) %>%
+      dplyr::slice(1) %>%
+      dplyr::ungroup()
+      
+    
+    # Collapsed across models, we're only interested in parameterizations here
+    ms_summary_stat_data <- 
+      ms_stat_data %>%
+      dplyr::group_by(participant_id) %>%
+      dplyr::slice(1) %>%
+      dplyr::ungroup() %>%
+      dplyr::group_by(model, parameterization) %>%
+      dplyr::summarize(count = n()) %>%
+      dplyr::arrange(dplyr::desc(count), model, parameterization) %>%
+      dplyr::ungroup() %>%
+      tidyr::complete(model, parameterization,
+                      fill = list(count = 0))
+      
+    } else if (summary_stat == "aggregate") {
+      
+      if (input_stat == "AIC") {
+        ms_stat_data <- 
+          tidy_optim_stats %>% 
+          dplyr::select(participant_id, model, parameterization, AIC)
+        
+        ms_summary_stat_data <- 
+          ms_stat_data %>%
+          dplyr::group_by(model, parameterization) %>%
+          dplyr::summarize(aggregate_AIC = sum(AIC)) %>%
+          dplyr::ungroup() %>%
+          dplyr::arrange(aggregate_AIC)
+        
+        summary_stat_key <- "aggregate_AIC"
+        
+      } else if (input_stat == "BIC") {
+        ms_stat_data <- 
+          tidy_optim_stats %>% 
+          # Determine number of parameters (k) and data points (n) based on AIC, LL, and BIC, since they weren't stored in optim_stats but are necessary for computing aggregate BIC
+          dplyr::mutate(k = round((AIC + 2 * LL) / 2),
+                        n = round(exp((BIC + 2 * LL) / k))) %>%
+          dplyr::select(-converged)
+        
+        ms_summary_stat_data <- 
+          ms_stat_data %>% 
+          dplyr::group_by(model, parameterization) %>%
+          dplyr::summarize(aggregate_BIC = -2 * sum(LL) + log(sum(n)) * sum(k),
+                           k = median(k)) %>%
+          dplyr::ungroup() %>%
+          dplyr::arrange(aggregate_BIC)
+        
+        ms_stat_data <- 
+          ms_stat_data %>%
+          dplyr::select(participant_id, model, parameterization, BIC) %>%
+          dplyr::arrange(participant_id, model, parameterization)
+        
+        summary_stat_key <- "aggregate_BIC"
+      }
+      
+      # Retain ms_stat_data from winning model only
+      winning_model_and_pmz <- 
+        ms_summary_stat_data %>%
+        dplyr::slice(which.min(!!sym(summary_stat_key)))
+      
+      winning_pmz <- 
+        winning_model_and_pmz %>%
+        dplyr::pull(parameterization)
+      winning_model <- 
+        winning_model_and_pmz %>%
+        dplyr::pull(model)  
+      
+      ms_stat_data <- 
+        ms_stat_data %>%
+        dplyr::filter(model == winning_model,
+                      parameterization == winning_pmz)
+    }
+  
+  # Output ---------------------------------------------------------------------
+  return(list(ms_stat_data = ms_stat_data, 
+              ms_summary_stat_data = ms_summary_stat_data)
+         )
+}
+```
+
+Compute aggregate BIC based on individual optimization stats data.
+```{r Compute aggregate BIC, rows.print=12}
+# Get modeling results
+modeling_results_bic_aggregate <- 
+  compute_model_selection_stat(optim_stats,
+                               input_stat = "BIC", 
+                               summary_stat = "aggregate")
+
+# Print for inspection
+modeling_results_bic_aggregate$ms_summary_stat_data
+```
+
+Count how often a model and parameterization has the lowest BIC value across participants based on optimization stats data.
+```{r Count how often a model and parameterization has the lowest BIC value across participants, rows.print=12}
+# Get modeling results
+modeling_results_bic_count <- 
+  compute_model_selection_stat(optim_stats,
+                               input_stat = "BIC", 
+                               summary_stat = "count")
+
+# Print for inspection
+modeling_results_bic_count$ms_summary_stat_data
+```
+
+## For visualization purposes
+For visualization purpuses, the data needs to be made human readable and factorized and a $\Delta BIC$ value (`dBIC`) needs to be computed, reflecting the difference in BIC value between the best-fitting model and other models.
+
+```{r Preprocess modeling data for visualization purposes, rows.print=12}
+
+
+# Greens
+fill_values <- c("#ccece6", "#99d8c9", "#66c2a4", "#2ca25f", "#006d2c")
+
+# Preprocess modeling data for visualization
+
+model_selection_data_for_plotting <- 
+  dplyr::left_join(modeling_results_bic_aggregate$ms_summary_stat_data,
+                   modeling_results_bic_count$ms_summary_stat_data,
+                   by = c("model", "parameterization")) %>%
+  dplyr::arrange(model, parameterization) %>%
+  dplyr::mutate(dBIC = aggregate_BIC - min(aggregate_BIC),
+                model = forcats::fct_relabel(.$model, .fun = cmdsddfeitc::relabel_mdl),
+                parameterization = forcats::fct_reorder(forcats::fct_relabel(.$parameterization, 
+                                                                             .fun = cmdsddfeitc::relabel_pmz), 
+                                                        .x = as.integer(as.character(.$k)),
+                                                        .fun = sum,
+                                                        .desc = TRUE),
+                count = as.integer(count),
+                k = as.factor(k)
+                )
+
+# Print for inspection
+model_selection_data_for_plotting
+```
+
+# Analyze data
+
+The best-fitting model overall is identified by sorting the models and parameterizations based on aggregate BIC. 
+
+Table \@ref(tab:tabbestaggregatebicmodel) ranks the models and parameterizations from best- to worst-fitting, based on aggregate BIC score. Lower BIC indicates a better balance between goodness-of-fit and model complexity, hence a more desirable model.
+
+```{r tabbestaggregatebicmodel, rows.print=12}
+knitr::kable(
+  modeling_results_bic_aggregate$ms_summary_stat_data %>%
+  dplyr::arrange(aggregate_BIC), 
+  booktabs = TRUE,
+  caption = 'Model comparison based on aggregate BIC, sorted from best- to worst-fitting.'
+)
+```
+
+Table \@ref(tab:tabbestbiccountmodel) ranks the models and parameterizations from most to least frequent best-fitting.
+
+```{r tabbestbiccountmodel, rows.print=12}
+
+knitr::kable(
+  modeling_results_bic_count$ms_summary_stat_data %>%
+    dplyr::arrange(dplyr::desc(count)), 
+  booktabs = TRUE,
+  caption = 'Model comparison based on BIC coun, sorted from most- to least-frequent best-fitting.'
+)
+
+```
+
+# Visualize data
+
+Figure \@ref(fig:figmodelcomparison) shows two plots:
+
+- The left plot depicts $\Delta BIC$ for all models and parameterizations, with the best-fitting model having $\Delta BIC = 0$.
+- The right plot shows for all models and parameterizations in how many participants these fit the data best.
+
+```{r Plot aggregate BIC and BIC count of all models and parameterizations}
+
+# Make plot of model comparison based on aggregate BIC
+plt_aggregate_bic <- 
+  cmdsddfeitc::plot_model_comparison_aggregate_bic(tibb = model_selection_data_for_plotting,
+                                                   fill_values = fill_values)
+
+# Make plot of model comparison based on BIC count
+plt_bic_count <-
+  cmdsddfeitc::plot_model_comparison_bic_count(tibb = model_selection_data_for_plotting,
+                                               fill_values = fill_values)
+```
+
+The two plots are the assembled into one figure with a common legend.
+```{r figmodelcomparison, warning=FALSE, fig.cap=cap_model_comparison }
+lgnd <- cowplot::get_legend(plt_aggregate_bic + ggplot2::theme(legend.position = "bottom",
+                                                      legend.direction = "horizontal",
+                                                      legend.box = "vertical"))
+
+plt_model_comparison <- cowplot::plot_grid(plt_aggregate_bic + theme(legend.position="none"),
+                                           plt_bic_count + theme(legend.position="none"),
+                                           lgnd,
+                                           align = "hv",
+                                           rel_widths = c(3,1),
+                                           rel_heights = c(1,.2))
+
+# Caption text
+cap_model_comparison <- 
+  sprintf("Model comparison results for the %s task. Left: $\\Delta BIC$ values for drift-diffusion models with fixed $\\sigma$ (top panel) and decision field theory models with varied $\\sigma$ (bottom panel) and different parameterizations (rows inside a panel indicates parameters that were free to vary between frames: $\\mu$, scaling parameter of the value function; $\\kappa$, scaling parameter of the time function; $t0$, nondecision time parameter). Right: Number of participants in which the respective model and parameterization was the best-fitting model. Color is mapped onto the number of free parameters (k).",
+                  stringr::str_replace(params$task, pattern = "_", replacement = "-")
+                  )
+
+plt_model_comparison
+```
+
+# Write data
+
+## Symlinks to participant-level data and figures of winning model
+Symlinks are created to participant-level data and figures of the winning models and parameterizations. This is done for easy selection of data in subsequent notebooks and inspection of results.
+
+```{r Define function for making symbolic links}
+# Define function for making symbolic links ====================================
+
+make_sym_links_to_best_mdl_files <- function(tibb, src_dir, tgt_dir, file_type = "data") {
+  
+  # Formatted string, for selecting files
+  if (file_type == "data") {
+    fmt <- ".*_task-%s_pid-%.3d_model-%s_pmz-%s_bounds.*_algorithm-DEoptimR.*.csv"
+  } else if (file_type == "plot") {
+    fmt <- "^plot.*_task-%s_pid-%.3d_model-%s_pmz-%s_bounds.*_algorithm-DEoptimR.*"
+  }
+  
+  # Loop over rows
+  for (i_row in 1:nrow(tibb)) {
+    
+    # Identify participant ID, model, and parameterization -----------------------
+    pid <- tibb[i_row,]$participant_id
+    mdl <- as.character(tibb[i_row,]$model)
+    # Strip task from parameterization string
+    pmz <- stringr::str_replace(string = tibb[i_row,]$parameterization,
+                                pattern = paste0(params$task,"_"),
+                                replacement = "")
+    
+    # Select files ---------------------------------------------------------------
+    winning_model_files <- 
+      list.files(path = src_dir, 
+                 pattern = sprintf(fmt, params$task[[1]], pid, mdl, pmz)
+                 )
+    
+    # Make a symbolic link -------------------------------------------------------
+    purrr::pmap(.l = list(fn = winning_model_files),
+                .f = function(fn, src_dir, tgt_dir) {
+                  fs::link_create(path = fs::path_abs(fs::path(src_dir, fn)),
+                                  new_path = fs::path_abs(fs::path(tgt_dir, fn)),
+                                  symbolic = TRUE)
+                },
+                src_dir = src_dir,
+                tgt_dir = tgt_dir)
+  }
+}
+```
+
+Copy data of winning models to a new directory
+```{r Copy data of winning models to a new directory}
+# Based on aggregate BIC
+make_sym_links_to_best_mdl_files(tibb = modeling_results_bic_aggregate$ms_stat_data,
+                                 src_dir = modeled_data_dir,
+                                 tgt_dir = bic_aggregate_winning_model_data_dir,
+                                 file_type = "data")
+
+# Based on BIC count
+make_sym_links_to_best_mdl_files(tibb = modeling_results_bic_count$ms_stat_data,
+                                 src_dir = modeled_data_dir,
+                                 tgt_dir = bic_count_winning_model_data_dir,
+                                 file_type = "data")
+```
+
+Copy images of winning model to a new directory
+
+```{r Copy images of winning model to a new directory}
+# Based on aggregate BIC
+make_sym_links_to_best_mdl_files(tibb = modeling_results_bic_aggregate$ms_stat_data,
+                                 src_dir = computational_modeling_idv_figures_dir,
+                                 tgt_dir = bic_aggregate_winning_model_figures_dir,
+                                 file_type = "plot")
+
+# Based on BIC counts
+make_sym_links_to_best_mdl_files(tibb = modeling_results_bic_count$ms_stat_data,
+                                 src_dir = computational_modeling_idv_figures_dir,
+                                 tgt_dir = bic_count_winning_model_figures_dir,
+                                 file_type = "plot")
+
+```
+
+Save the data underlying the model comparison plot
+```{r Save the data underlying the model comparison plot}
+# Make file name human- and machine-readable, so that main results can be read from file name
+model_comparison_plot_data_file <-
+  file.path(model_comparison_group_dir,
+            sprintf("model_comparison_plot_data_task-%s.csv",
+                    params$task
+                    )
+            )
+  
+readr::write_csv(model_selection_data_for_plotting,
+                 path = model_comparison_plot_data_file
+            ) %>%
+print(sprintf("%s", model_comparison_plot_data_file))
+```
+
+
+## Figures
+
+Finally, the figures are witten to disk in raster and vector format.
+```{r Parameters for writing plots to disk}
+# General parameters ===========================================================
+
+# Resolution
+dpi <- 300
+```
+
+```{r Write figures to disk, warning=FALSE}
+
+# Filename
+fn <- sprintf("model_comparison_results-%s_dpi-%d", params$task, dpi)
+
+# As raster image --------------------------------------------------------------
+filename <- paste0(fn, ".png")
+ggplot2::ggsave(path = figures_dir,
+                filename = filename,
+                plot = plt_model_comparison,
+                width = 8.5,
+                units = "cm",
+                dpi = dpi)
+
+print(sprintf("%s", file.path(figures_dir, filename)))
+
+# As vector image --------------------------------------------------------------
+filename <- paste0(fn, ".pdf")
+ggplot2::ggsave(path = figures_dir,
+                filename = filename,
+                plot = plt_model_comparison,
+                width = 8.5,
+                units = "cm",
+                dpi = dpi)
+
+print(sprintf("%s", file.path(figures_dir, filename)))
+```
+

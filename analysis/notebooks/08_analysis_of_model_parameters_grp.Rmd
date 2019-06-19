@@ -1,0 +1,486 @@
+---
+params:
+  title: "08_analysis_of_model_parameters"
+  task: "defer_speedup"
+  algorithm: "DEoptimR"
+title: '`r stringr::str_to_title(params$title)`'
+author: "Bram Zandbelt"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    number_sections: true
+    fig_caption: true
+    df_print: paged
+    code_folding: hide
+    theme: readable
+    highlight: pygments
+    bibliography: "cmdsddfeitc.bib"
+    biblio-style: author-year
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Set root dir to project directory to ensure that code is always run relative to the project directory, no matter if it is run using `knitr` or interactively.
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+
+# Attach tideverse package to enable access to pipe (%>%)
+require(tidyverse)
+```
+
+# Overview
+
+# Preliminaries
+```{r}
+notebook_name <- 
+   stringr::str_to_lower(stringr::str_replace_all(params$title, " ", "_"))
+```
+
+
+- the _name of the notebook (`notebook_name`)_, which is used to save output to a notebook-specific directory
+
+```{r Define relevant directories for reading and writing data and create whenever needed}
+# Data from computational modeling will be read from here
+model_comparison_group_dir <- 
+  file.path("data","derivatives", "06_model_comparison_group")
+
+bic_aggregate_winning_model_data_dir <- 
+  file.path(model_comparison_group_dir, "winning_models_bic_aggregate")
+
+bic_count_winning_model_data_dir <- 
+  file.path(model_comparison_group_dir, "winning_models_bic_count")
+
+# Derivatives will be written here
+derivatives_dir <- 
+  file.path("data","derivatives", notebook_name) 
+  
+# Figures will be written here
+figures_dir <- 
+  file.path("figures", notebook_name)
+
+# Create non-existing dirs if they don't exist
+cmdsddfeitc::check_dir(all_dirs = c(derivatives_dir, figures_dir))
+```
+- all _relevant directories_ for reading and writing data
+
+# Read data
+
+```{r Read data}
+# Determine which files should be read
+
+# Pattern for selecting files
+pattern_best_fit_params <- 
+  sprintf("best_fitting_params_task-%s.*%s_BIC.*.csv",
+          params$task[[1]],
+          params$algorithm[[1]])
+
+# Column types for best-fitting parameter values files
+col_types_best_fitting_pars <- 
+  cmdsddfeitc::get_col_types("best_fitting_params")
+
+# Read data
+data_best_fit_params <- 
+  tibble::tibble(best_model_type = factor(levels = c("overall", "individual")),
+                 path = character()) %>%
+  tibble::add_row(best_model_type = "overall",
+                  path = bic_aggregate_winning_model_data_dir,) %>%
+  tibble::add_row(best_model_type = "individual",
+                  path = bic_count_winning_model_data_dir) %>%
+  dplyr::mutate(files = purrr::map(path, .f = list.files,
+                                   pattern = pattern_best_fit_params,
+                                   full.names = TRUE
+                                   )) %>%
+  dplyr::select(-path) %>%
+  tidyr::unnest() %>%
+  dplyr::mutate(data = purrr::map(files, readr::read_csv, col_types = col_types_best_fitting_pars)) %>%
+  dplyr::mutate(data = purrr::pmap(.l = list(in1 = .$data),
+                                    .f = function(in1) {
+                                      in1 %>% 
+                                        dplyr::group_by_at(c("participant_id", "model_name","parameterization", "bound_settings", "algorithm")) %>% 
+                                        tidyr::nest(.key = "params")
+                                        
+                                    })) %>%
+  tidyr::unnest()
+```
+- the _filenames of the files containing the area under the curve data (`auc_filenames`) and optimization statsistics (`optim_stats_filenames`)_
+
+# Preprocess data
+
+## Parameter values of the best-fitting model overall 
+
+```{r}
+best_fit_params_overall <- 
+  data_best_fit_params %>%
+  dplyr::filter(best_model_type == "overall") %>%
+  # Reorder to facilitate inspection
+  dplyr::select(best_model_type, participant_id, model_name, parameterization, params) %>%
+  dplyr::mutate(params = purrr::map(params, gather)) %>%
+  tidyr::unnest() %>%
+  print()
+  
+```
+
+
+```{r Prepare best_fit_params_overall for plotting}
+if (params$task == "defer_speedup") {
+  par_levels <- c("alpha", "beta", "kappa2", "kappa3", "w", "theta_star", "t0")
+} else if (params$task == "date_delay") {
+  par_levels <- c("alpha", "beta", "kappa2", "w", "theta_star", "t0")
+}
+
+best_fit_params_overall_plt_long <- 
+  best_fit_params_overall %>%
+  # Keep relevant columns only
+  dplyr::select(participant_id, key, value) %>%
+  # Remove fixed parameters
+  dplyr::filter(!key %in% c("kappa1", "mu")) %>%
+  # Reorder keys by factorization (for convenient ordering of parameters in plot)
+  dplyr::mutate(key = forcats::as_factor(key, levels = par_levels, ordered = TRUE))
+  
+best_fit_params_overall_plt_wide <- 
+  best_fit_params_overall_plt_long %>%
+  tidyr::spread(key = key, value = value) %>%
+  # Reorder columns for plotting
+  dplyr::select(participant_id, par_levels)
+  
+  
+```
+
+
+Provide some sumary statistics
+```{r}
+best_fit_params_overall_plt_wide %>% 
+  dplyr::summarise_at(vars(-participant_id), .funs = c("median", "IQR")) %>% 
+  tidyr::gather() %>% 
+  dplyr::arrange(key)
+```
+
+
+
+## Using best-fitting parameter values, make model functions
+
+```{r}
+get_model_fun_data <- function(model_fun = "time", tibb) {
+  
+  # Task-dependent variables ---------------------------------------------------
+  if (params$task == "defer_speedup") {
+    frame_levels <- c("neutral", "defer", "speedup")
+  } else if (params$task == "date_delay") {
+    frame_levels <- c("delay", "date")
+  }
+  
+  # Model function-dependent variables -----------------------------------------
+  if (model_fun == "value") {
+    x = seq(0, 43.52, 0.17)
+    relevant_pars <- c("alpha")
+  } else if (model_fun == "time") {
+    x = seq(0, 128, 1)
+    
+    if (params$task == "defer_speedup") {
+      relevant_pars <- c("beta", "kappa2", "kappa3")
+    } else if (params$task == "date_delay") {
+      relevant_pars <- c("beta", "kappa2")
+    }
+  }
+  
+  model_fun_data <- 
+    tidyr::crossing(participant_id = unique(tibb$participant_id),
+                    x = x) %>%
+    dplyr::left_join(best_fit_params_overall_plt_long %>% dplyr::filter(key %in% relevant_pars),
+                     by = "participant_id") %>%
+    tidyr::spread(key = key, value = value)
+  
+  # Average best-fitting parameters across the group ----------------------------
+  grp_parameters <- 
+    best_fit_params_overall_plt_long %>% 
+    dplyr::filter(key %in% relevant_pars) %>% 
+    dplyr::group_by(key) %>% 
+    dplyr::summarise(value = mean(value))
+    
+  model_fun_summary_data <- 
+    grp_parameters %>% 
+    tidyr::crossing(x = x) %>% 
+    tidyr::spread(key = key, value = value)
+  
+  # Calculate model functions for each individual and across the group ---------
+  if (model_fun == "value") {
+    if (params$task == "defer_speedup") {
+      model_fun_data <- 
+        model_fun_data %>%
+        dplyr::mutate(neutral = x^alpha,
+                      defer = x^alpha,
+                      speedup = x^alpha)
+      model_fun_summary_data <- 
+        model_fun_summary_data %>%
+        dplyr::mutate(neutral = x^alpha,
+                      defer = x^alpha,
+                      speedup = x^alpha)
+    } else if (params$task == "date_delay") {
+      model_fun_data <- 
+        model_fun_data %>%
+        dplyr::mutate(delay = x^alpha,
+                      date = x^alpha)
+      model_fun_summary_data <- 
+        model_fun_summary_data %>%
+        dplyr::mutate(delay = x^alpha,
+                      date = x^alpha)
+    }
+  } else if (model_fun == "time") {
+    if (params$task == "defer_speedup") {
+      model_fun_data <- 
+        model_fun_data %>%
+        dplyr::mutate(neutral = x^beta,
+                      defer = kappa2 * x^beta,
+                      speedup = kappa3 * x^beta)
+      model_fun_summary_data <- 
+        model_fun_summary_data %>%
+        dplyr::mutate(neutral = x^beta,
+                      defer = kappa2 * x^beta,
+                      speedup = kappa3 * x^beta)
+    } else if (params$task == "date_delay") {
+      model_fun_data <- 
+        model_fun_data %>%
+        dplyr::mutate(delay = x^beta,
+                      date = kappa2 * x^beta)
+      model_fun_summary_data <- 
+        model_fun_summary_data %>%
+        dplyr::mutate(delay = x^beta,
+                      date = kappa2 * x^beta)
+      }
+  }
+  
+  # Tidy data ------------------------------------------------------------------
+  model_fun_data <- 
+    model_fun_data %>%
+    tidyr::gather(key = "frame", value = "y", frame_levels) %>%
+    dplyr::mutate(frame = factor(frame, levels = frame_levels, ordered = TRUE))
+  
+  model_fun_summary_data <- 
+    model_fun_summary_data %>%
+    tidyr::gather(key = "frame", value = "y", frame_levels) %>%
+    dplyr::mutate(frame = factor(frame, levels = frame_levels, ordered = TRUE))
+    
+  # Summary data ---------------------------------------------------------------
+  # model_fun_summary_data <- 
+  #   model_fun_data %>%
+  #   dplyr::group_by(frame, x) %>%
+  #   dplyr::summarize(y = median(y))
+    
+  # Output ---------------------------------------------------------------------
+  list(idv_data = model_fun_data,
+       grp_data = model_fun_summary_data)
+}
+
+value_fun_data <- 
+  get_model_fun_data(model_fun = "value", tibb = best_fit_params_overall_plt_long)
+
+time_fun_data <- 
+  get_model_fun_data(model_fun = "time", tibb = best_fit_params_overall_plt_long)
+
+```
+
+# Visualize data
+
+## Distribution of parameter values across participants
+
+```{r Plot distribution of parameter values across participants}
+plt_distribution_par_values <- 
+  cmdsddfeitc::plot_par_values_distribution(tibb = best_fit_params_overall_plt_long)
+  
+plt_distribution_par_values
+```
+
+## Relationship between parameters across participants
+```{r Plot relationship between parameter values across participants}
+plt_par_pairs <- 
+  cmdsddfeitc::plot_par_values_pairs(tibb = best_fit_params_overall_plt_wide)
+```
+
+## Value and time functions of computational model, given best-fitting parameters
+```{r}
+plot_model_functions <- function(model_fun = "time", tibblist) {
+  
+  # Preliminaries --------------------------------------------------------------
+  if (params$task == "defer_speedup") {
+    frame_levels <- c("neutral", "defer", "speedup")
+    linetype_vals <- c("solid", "dotted", "dashed")
+  } else if (params$task == "date_delay") {
+    frame_levels <- c("delay", "date")
+    linetype_vals <- c("solid", "dotted")
+  }
+  
+  if (model_fun == "value") {
+    line_col <- "orange"
+    xlab <- "Money (€)"
+    ylab <- "Utility (a.u.)"
+    xlim <- ylim <- c(0, 43.52)
+  } else if (model_fun == "time") {
+    line_col <- "darkgreen"
+    xlab <- "Time (days)"
+    ylab <- "Subjective time (a.u.)"
+    xlim <- ylim <- c(0, 128)
+  }
+  
+  # Setup the plot object ------------------------------------------------------
+  ggplot2::ggplot(data = tibblist$grp_data,
+                  mapping = ggplot2::aes(x = x,
+                                         y = y,
+                                         linetype = frame)
+                  ) +
+    
+    # Geoms --------------------------------------------------------------------
+    ggplot2::geom_line(color = line_col,
+                       size = 1) +
+    ggplot2::geom_line(data = tibblist$idv_data,
+                       mapping = ggplot2::aes(x = x, 
+                                              y = y,
+                                              linetype = frame,
+                                              group = interaction(participant_id, 
+                                                                  frame)),
+                       color = line_col,
+                       alpha = 0.1) + 
+    
+    ggplot2::geom_abline(slope = 1, 
+                         intercept = 0,
+                         color = "black", 
+                         size = 0.5,
+                         linetype = "dashed") +
+    
+    # Scales -------------------------------------------------------------------
+    ggplot2::scale_x_continuous(name = xlab,
+                                limits = xlim) +
+    ggplot2::scale_y_continuous(name = ylab,
+                                limits = ylim) +
+    
+    # Themes -------------------------------------------------------------------
+    cmdsddfeitc::theme_cmfsddfeitc() + 
+    ggplot2::theme(panel.background = element_blank(),
+                   panel.grid = ggplot2::element_blank(),
+                   legend.text = ggplot2::element_text(size = 10),
+                   legend.position = "bottom")
+  
+}
+```
+
+```{r Plot value function using best-fitting parameters of overall model}
+plt_best_fitting_value_function <- plot_model_functions(model_fun = "value", tibblist = value_fun_data)
+
+plt_best_fitting_value_function
+```
+
+
+```{r Plot time function using best-fitting parameters of overall model}
+plt_best_fitting_time_function <- plot_model_functions(model_fun = "time", tibblist = time_fun_data)
+
+plt_best_fitting_time_function
+```
+
+
+```{r}
+ggplot2::ggplot(data = time_fun_data$idv_data,
+                mapping = ggplot2::aes(x = x,
+                                       y = y,
+                                       linetype = frame)) +
+  ggplot2::facet_wrap("participant_id", scales = "free_y") +
+  ggplot2::geom_line(color = "darkgreen") +
+  
+  cmdsddfeitc::theme_cmfsddfeitc()
+```
+
+
+# Write data to disk
+
+## Best-ftting parameter values
+
+```{r}
+# Best-fitting parameters of overall best model (wide data format)
+best_fit_params_overall_plt_wide_file <- 
+  file.path(derivatives_dir,
+            sprintf("best_fitting_params_overall_best_model_wide_task-%s.csv",
+                    params$task)
+            )
+
+readr::write_csv(x = best_fit_params_overall_plt_wide,
+                 path = best_fit_params_overall_plt_wide_file
+                 )
+
+print(sprintf("%s", best_fit_params_overall_plt_wide_file))
+
+# Best-fitting parameters of overall best model (long data format)
+
+best_fit_params_overall_plt_long_file <- 
+  file.path(derivatives_dir,
+            sprintf("best_fitting_params_overall_best_model_long_task-%s.csv",
+                    params$task)
+            )
+
+readr::write_csv(x = best_fit_params_overall_plt_long,
+                 path = best_fit_params_overall_plt_long_file
+                 )
+
+print(sprintf("%s", best_fit_params_overall_plt_long_file))
+```
+
+
+## Plots
+
+
+```{r}
+# Save plots to disk ===========================================================
+
+# Resolution (for raster images)
+dpi <- 300
+
+# Make function for saving
+save_figure <- function(fn, plt, wdth) {
+  # As raster image ------------------------------------------------------------
+  ggplot2::ggsave(path = figures_dir,
+                  filename = paste0(fn, ".png"),
+                  plot = plt,
+                  width = wdth,
+                  units = "cm",
+                  dpi = dpi)
+  
+  # As vector image ------------------------------------------------------------
+  ggplot2::ggsave(path = figures_dir,
+                  filename = paste0(fn, ".pdf"),
+                  plot = plt,
+                  width = wdth,
+                  units = "cm")
+}
+
+# Save figure showing distribution of parameter values -------------------------
+save_figure(fn = sprintf("parameter_distribution_plot_task-%s_dpi-%d", 
+                         params$task, 
+                         dpi),
+            plt = plt_distribution_par_values,
+            wdth = 8.5
+            )
+
+# Save figure showing relationship between parameters --------------------------
+save_figure(fn = sprintf("parameter_pair_plot_task-%s_dpi-%d", 
+                         params$task, 
+                         dpi),
+            plt = plt_par_pairs,
+            wdth = 18
+            )
+
+# Save figure showing value function of the model  -----------------------------
+save_figure(fn = sprintf("value_function_best_fitting_par_vals_overall_task-%s_dpi-%d", 
+                         params$task, 
+                         dpi),
+            plt = plt_best_fitting_value_function,
+            wdth = 8.5
+            )
+
+# Save figure showing time function of the model  ------------------------------
+save_figure(fn = sprintf("time_function_best_fitting_par_vals_overall_task-%s_dpi-%d", 
+                         params$task, 
+                         dpi),
+            plt = plt_best_fitting_time_function,
+            wdth = 8.5
+            )
+```
+
