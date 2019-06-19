@@ -22,7 +22,7 @@ notebook_file <-
          )
 
 # Define input dir (notebook_templates_dir) and outpur dir (reports_dir)
-notebook_templates_dir <- "analysis/notebook_templates"
+notebook_templates_dir <- "analysis/notebooks"
 reports_dir <- file.path("reports", stringr::str_replace(notebook_file,
                                                          pattern = ".Rmd",
                                                          replacement = ""))

@@ -94,7 +94,7 @@ The `R/` directory contains:
 
 The `analysis/` directory contains:
 
-- R Markdown notebooks implementing the analyses (`notebook_templates/` directory), numbered in the order in which they should be run;
+- R Markdown notebooks implementing the analyses (`notebooks/` directory), numbered in the order in which they should be run;
 - shell scripts running the R Markdown notebooks with appropriate parameters, if any (`bash/` directory).
 
 The `data/` directory contains:
