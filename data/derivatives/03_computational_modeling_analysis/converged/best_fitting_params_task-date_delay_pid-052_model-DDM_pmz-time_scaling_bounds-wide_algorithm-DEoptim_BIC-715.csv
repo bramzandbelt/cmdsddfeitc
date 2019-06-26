@@ -1,0 +1,2 @@
+participant_id,model_name,parameterization,bound_settings,algorithm,alpha,mu,beta,kappa1,kappa2,w,a,t0
+52,DDM,time_scaling,wide,DEoptim,0.6343214265703491,1,0.7822895447350524,1,1.1451650601183276,0.957014847896875,3.3963558526438495,1.1988126623238013

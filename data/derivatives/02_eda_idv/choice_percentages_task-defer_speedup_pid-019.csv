@@ -1,0 +1,6 @@
+participant_id,frame,choice,n,percentage
+19,neutral,ll,80,1
+19,defer,ss,46,0.5822784810126582
+19,defer,ll,33,0.4177215189873418
+19,speedup,ss,6,0.07894736842105263
+19,speedup,ll,70,0.9210526315789473

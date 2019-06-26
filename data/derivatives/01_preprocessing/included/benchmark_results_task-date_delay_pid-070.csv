@@ -1,0 +1,12 @@
+participant_id,stage_id,criterion,value,criterion_met
+70,practice,n_trial,10,TRUE
+70,calibration,n_trial,63,TRUE
+70,experiment,n_trial,184,TRUE
+70,calibration,accuracy_control,1,TRUE
+70,experiment,accuracy_control,1,TRUE
+70,calibration,proportion_too_fast,0,TRUE
+70,experiment,proportion_too_fast,0,TRUE
+70,calibration,proportion_omission_error,0,TRUE
+70,experiment,proportion_omission_error,0,TRUE
+70,experiment,max_proportion_any_choice,0.9166666666666666,TRUE
+70,experiment,max_n_standard_trials_ms_greater_than_ml,0,TRUE

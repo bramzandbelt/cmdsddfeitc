@@ -1,0 +1,2 @@
+participant_id,model,parameterization,bound_settings,algorithm,n_iter,converged,LL,AIC,BIC
+20,DDM,date_delay_value_scaling,wide,DEoptimR,307,TRUE,-439.69003696206767,891.3800739241353,910.0520006542746

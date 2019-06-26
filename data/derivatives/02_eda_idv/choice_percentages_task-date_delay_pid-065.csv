@@ -1,0 +1,5 @@
+participant_id,frame,choice,n,percentage
+65,delay,ss,25,0.3246753246753247
+65,delay,ll,52,0.6753246753246753
+65,date,ss,10,0.12345679012345678
+65,date,ll,71,0.8765432098765432

@@ -1,0 +1,4 @@
+participant_id,model,parameterization,bound_settings,algorithm,frame,auc,norm_auc
+49,DFT_CRT,value_scaling,wide,DEoptimR,neutral,4879.288759257525,0.8759063288533873
+49,DFT_CRT,value_scaling,wide,DEoptimR,defer,4875.743434815737,0.875269889349677
+49,DFT_CRT,value_scaling,wide,DEoptimR,speedup,4883.668991885703,0.8766926470383054

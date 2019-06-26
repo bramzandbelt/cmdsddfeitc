@@ -1,0 +1,2 @@
+participant_id,model_name,parameterization,bound_settings,algorithm,alpha,mu1,mu2,beta,kappa,w,theta_star,t01,t02
+75,DFT_CRT,value_scaling_t0,wide,DEoptim,0.8127153107218401,1,0.9841959165673859,0.35290204075568543,1,0.7561233113231721,3.3367238850767142,1.2082982410153094,1.1970469953217746
