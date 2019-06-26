@@ -8,3 +8,7 @@ packrat/lib*/
 # PBS log files
 *.e*
 *.o*
+
+# Files containing potentially identifying data (session date and time), incl. raw data, runtime_info, lab notebook
+data/raw/*
+documents/content/raw/runtime_info/*
