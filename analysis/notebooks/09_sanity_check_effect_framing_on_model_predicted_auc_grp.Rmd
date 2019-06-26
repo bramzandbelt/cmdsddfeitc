@@ -3,12 +3,12 @@ params:
   title: "09_sanity_check_effect_framing_on_model_predicted_auc"
   task: "date_delay"
   algorithm: "DEoptimR"
-title: '`r stringr::str_to_title(params$title)`'
-author: "Bram Zandbelt"
+title: '`r stringr::str_to_title(stringr::str_replace_all(params$title, pattern = "_", replacement = " "))`'
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: 
   bookdown::html_document2:
     toc: true
+    toc_float: true
     number_sections: true
     fig_caption: true
     df_print: paged
@@ -395,18 +395,9 @@ plot_predicted_ip <- function(tibb) {
     
     # Annotation ---------------------------------------------------------------
     ggplot2::annotate(geom = "text",
-                      label = paste("N =", nrow(plot_data)),
-                      x = .95,
+                      label = paste("N =", length(unique(tibb$participant_id))),
+                      x = 128,
                       y = .10,
-                      hjust = 1,
-                      vjust = 1
-                      ) +
-    
-    ggplot2::annotate(geom = "text",
-                      label = paste("BF =", 
-                                    round(exp(BF@bayesFactor$bf)[[1]], 2)),
-                      x = .95,
-                      y = .05,
                       hjust = 1,
                       vjust = 1
                       ) +
@@ -426,9 +417,12 @@ plt_prediced_auc_idv_best <-  plot_predicted_ip(tibb = ip_bic_count)
 
 ```
 
-
-```{r}
+```{r Plot predicted AUC curved for best overall model}
 plt_prediced_auc_overall_best
+```
+
+```{r Plot predicted AUC curved for best model per individual}
+plt_prediced_auc_idv_best
 ```
 
 
@@ -458,11 +452,19 @@ save_figure <- function(fn, plt, wdth) {
                   units = "cm")
 }
 
-# Save figure showing distribution of parameter values -------------------------
+# Save figure showing predicted AUC for overall best model ---------------------
 save_figure(fn = sprintf("predicted_auc_overall_best_model_task-%s_dpi-%d", 
                          params$task, 
                          dpi),
             plt = plt_prediced_auc_overall_best,
+            wdth = 8.5
+            )
+
+# Save figure showing predicted AUC for best model per individual ---------------------
+save_figure(fn = sprintf("predicted_auc_idv_best_model_task-%s_dpi-%d", 
+                         params$task, 
+                         dpi),
+            plt = plt_prediced_auc_idv_best,
             wdth = 8.5
             )
 ```
