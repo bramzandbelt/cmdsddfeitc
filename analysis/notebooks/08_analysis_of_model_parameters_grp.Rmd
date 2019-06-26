@@ -3,8 +3,7 @@ params:
   title: "08_analysis_of_model_parameters"
   task: "defer_speedup"
   algorithm: "DEoptimR"
-title: '`r stringr::str_to_title(params$title)`'
-author: "Bram Zandbelt"
+title: '`r stringr::str_to_title(stringr::str_replace_all(params$title, pattern = "_", replacement = " "))`'
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: 
   bookdown::html_document2:
@@ -378,16 +377,47 @@ plt_best_fitting_time_function
 ```
 
 
-```{r}
-ggplot2::ggplot(data = time_fun_data$idv_data,
-                mapping = ggplot2::aes(x = x,
-                                       y = y,
-                                       linetype = frame)) +
-  ggplot2::facet_wrap("participant_id", scales = "free_y") +
-  ggplot2::geom_line(color = "darkgreen") +
+```{r Plot individual time functions}
+plt_idv_time_funs <- 
+  ggplot2::ggplot(data = time_fun_data$idv_data,
+                  mapping = ggplot2::aes(x = x,
+                                         y = y,
+                                         linetype = frame)) +
+    ggplot2::facet_wrap("participant_id", scales = "free_y") +
+    ggplot2::geom_line(color = "darkgreen") +
+    
+    cmdsddfeitc::theme_cmfsddfeitc()
+
+# Adjust y-axis tick labels so that only lowermost and uppermost are shown
+
+plt_idv_time_funs_data <- ggplot_build(plt_idv_time_funs)
+
+for (i_panel in 1:length(plt_idv_time_funs_data$layout$panel_params)) {
   
-  cmdsddfeitc::theme_cmfsddfeitc()
+  # Get x- and y-axis tick labels and positions
+  xlabs <- plt_idv_time_funs_data$layout$panel_params[[i_panel]]$x.labels
+  xmaj <- plt_idv_time_funs_data$layout$panel_params[[i_panel]]$x.major
+  xmajs <- plt_idv_time_funs_data$layout$panel_params[[i_panel]]$x.major_source
+  
+  ylabs <- plt_idv_time_funs_data$layout$panel_params[[i_panel]]$y.labels
+  ymaj <- plt_idv_time_funs_data$layout$panel_params[[i_panel]]$y.major
+  ymajs <- plt_idv_time_funs_data$layout$panel_params[[i_panel]]$y.major_source
+  
+  # Only keep the lowermost and uppermost
+  plt_idv_time_funs_data$layout$panel_params[[i_panel]]$x.labels = xlabs[c(1,length(xlabs))]
+  plt_idv_time_funs_data$layout$panel_params[[i_panel]]$x.major <- xmaj[c(1,length(xmaj))]
+  plt_idv_time_funs_data$layout$panel_params[[i_panel]]$x.major_source <- xmajs[c(1,length(xmajs))]
+  
+  plt_idv_time_funs_data$layout$panel_params[[i_panel]]$y.labels = ylabs[c(1,length(ylabs))]
+  plt_idv_time_funs_data$layout$panel_params[[i_panel]]$y.major <- ymaj[c(1,length(ymaj))]
+  plt_idv_time_funs_data$layout$panel_params[[i_panel]]$y.major_source <- ymajs[c(1,length(ymajs))]
+  
+}
+
+# Plot again
+grid::grid.draw(ggplot2::ggplot_gtable(plt_idv_time_funs_data))
 ```
+
 
 
 # Write data to disk
