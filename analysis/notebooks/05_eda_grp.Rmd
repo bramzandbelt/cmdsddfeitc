@@ -135,9 +135,8 @@ for (i_file in 1:length(calibration_ip_filenames)) {
 
 - Indifference point data: filter data from `r stringr::str_replace(params$task, pattern = "_", replacement = "-")` task
 - Choices: filter LL choices and only select relevant frames
--
 
-```{r}
+```{r Preprocess data}
 
 # Indifference points from the calibration task
 
@@ -218,243 +217,12 @@ if (params$task == "defer_speedup") {
 
 ```
 
-# Analyze data
-
-Data analysis consists of:
-
-- checking whether the data are in line with framing effect
-
-
-## Check whether the data are in line with original framing effect
-
-First, check whether the framing effect data are approximately normally distributed, using a quantile-quantile (Q-Q) plot and an empirical cumulative distribution function (ECDF) of the framing effects.
-
-```{r}
-
-if (params$task == "defer_speedup") {
-  ll_choice_pctgs_for_plotting <- 
-    ll_choice_pctgs_for_plotting %>%
-    dplyr::mutate(diff = speedup - defer)
-} else if (params$task == "date_delay") {
-  ll_choice_pctgs_for_plotting <- 
-    ll_choice_pctgs_for_plotting %>%
-    dplyr::mutate(diff = date - delay)
-}
-
-# Now look at QQ plot of the data to see if approximately normal
-plt_qq <- 
-  ggplot2::ggplot(data = ll_choice_pctgs_for_plotting,
-                  mapping = ggplot2::aes(sample = diff)) +
-  ggplot2::stat_qq() +
-  ggplot2::stat_qq_line() +
-  ggplot2::coord_equal() +
-  ggplot2::theme(aspect.ratio = 1)
-
-# Estimate mean and sd of normal
-ecdf_params <- as.list(MASS::fitdistr(ll_choice_pctgs_for_plotting$diff, "normal")$estimate)
-
-# Also plot a ECDF
-plt_ecdf <- 
-  ggplot2::ggplot(data = ll_choice_pctgs_for_plotting,
-                  mapping = ggplot2::aes(x = diff)) +
-  ggplot2::stat_ecdf() +
-  ggplot2::stat_function(fun = pnorm, colour="red", args = list(mean = ecdf_params$mean, sd = ecdf_params$sd)) +
-  ggplot2::coord_equal() +
-  ggplot2::theme(aspect.ratio = 1)
-```
-
-The data do not appear to be distributed normally, so I used nonparametric testing.
-
-We 
-
-Jonas Lindeløv has pointed out that non-parametric models, such as the Wilcoxon signed rank test
-
-
-
-```{r}
-normal_test_data <- data.frame(x = rnorm(n = 1000, mean = 0))
-
-ggplot2::ggplot(data = normal_test_data,
-                mapping = ggplot2::aes(sample = x)) +
-  ggplot2::stat_qq() + 
-  ggplot2::geom_abline(slope = 1, intercept = 0, color = "blue")
-```
-
-
-
-
-```{r}
-# Different transformations can be applied to make data normal
-transform_data <- function(p, transformation = "logit") { 
-
-  # Adjust values close to 0 or 1 to prevent that transformation returns Inf
-  if (transformation == "logit") {
-    log(p) / (1 - p) 
-  } else if (transformation == "log") {
-    log(p)
-  } else if (transformation == "sqrt") {
-    sqrt(p)
-  } else if (transformation == "reciprocal") {
-    1 / p
-  }
-}
-
-trnsfrmd_ll_choice_pctgs_for_plotting <- 
-  ll_choice_pctgs_for_plotting %>%
-  dplyr::mutate(diff_reciprocal = transform_data(p = diff, transformation = "reciprocal"))
-```
-
-```{r}
-shapiro.test(trnsfrmd_ll_choice_pctgs_for_plotting$diff_reciprocal)
-```
-
-
-```{r}
-# Jonas Lindeløv's approach using brms model
-
-signed_rank = function(x) sign(x) * rank(abs(x))
-
-
-my_data <- data.frame(framing_effect = ll_choice_pctgs_for_plotting$diff)
-  
-priors_intercept = c(brms::set_prior('cauchy(0, 0.55)', class = 'Intercept'))  # JZS prior as the BayesFactor package, though without the Jeffreys prior on Sigma for simplicity.
-  
-
-JZS_prior <- 
-  c(brms::set_prior('cauchy(0, 0.55)', class = 'Intercept'),
-    brms::set_prior("target += -2*log(sigma)", check = FALSE)) # see: https://twitter.com/ianhussey/status/882961318050967557
-
-
-full_brms <- 
-  brms::brm(signed_rank(framing_effect) ~ 1, 
-            data = my_data, 
-            prior = JZS_prior,
-            # prior = priors_intercept, 
-            save_all_pars = TRUE, 
-            iter=100000)
-null_brms <-  
-  brms::brm(signed_rank(framing_effect) ~ 0, 
-            data = my_data, 
-            save_all_pars = TRUE, 
-            iter = 100000)
-```
-
-```{r}
-BF_brms_bridge = bayes_factor(full_brms, null_brms)
-BF_brms_bridge$bf
-```
-
-Test correctness of this approach by comparing against BayesFactor package example of one-sample t-test
-```{r}
-
-# diffScores = sleep$extra[1:10] - sleep$extra[11:20]
-# 
-# my_data <- data.frame(diffScores = diffScores)
-
-my_data <- data.frame(framing_effect = ll_choice_pctgs_for_plotting$diff)
-```
-
-
-
-Using BIC 
-```{r}
-full_lm = lm(signed_rank(framing_effect) ~ 1, my_data)  # One mean with gauss residual
-null_lm = lm(signed_rank(framing_effect) ~ 0, my_data)  # Fixed mean at score = 0
-BF_BIC = exp((BIC(null_lm) - BIC(full_lm))/2)  # From BICs to Bayes factor
-BF_BIC
-```
-
-Using BayesFactor
-```{r}
-bf = BayesFactor::ttestBF(x = signed_rank(my_data$framing_effect))
-bf
-```
-
-Using brms
-```{r}
-my_prior <- 
-  c(brms::set_prior('cauchy(0, 0.55)', class = 'Intercept'))
-
-full_brms <- 
-  brms::brm(signed_rank(framing_effect) ~ 1, 
-            data = my_data, 
-            prior = my_prior,
-            save_all_pars = TRUE, 
-            iter=10000)
-null_brms <-  
-  brms::brm(signed_rank(framing_effect) ~ 0, 
-            data = my_data, 
-            save_all_pars = TRUE, 
-            iter = 10000)
-```
-
-Inspect models
-```{r Inspect full model}
-summary(full_brms)
-plot(full_brms, N = 2, ask = FALSE)
-```
-
-```{r Inspect null model}
-summary(null_brms)
-plot(null_brms, N = 2, ask = FALSE)
-```
-
-Do Bayesian model comparison using bridge sampling to obtain Bayes Factors.
-```{r}
-BF_brms_bridge = brms::bayes_factor(full_brms, null_brms)
-BF_brms_bridge$bf
-```
-
-
-
-
-Posterior predictive check
-```{r}
-# brms::pp_check(full_brms)
-brms::pp_check(full_brms, type = "stat_2d")
-```
-
-
-
-
-```{r}
-# # JZS prior
-# my_prior <- 
-#   c(brms::set_prior('cauchy(0, 0.707)', class = 'Intercept'),
-#     brms::set_prior("target += -2*log(sigma)", check = FALSE)) # see: https://twitter.com/ianhussey/status/882961318050967557
-
-
-```
-
-```{r}
-BF_brms_bridge = brms::bayes_factor(full_brms, null_brms)
-BF_brms_bridge$bf
-```
-
-
-Do a Bayesian version of the Wilcoxon signed rank test on the P(LL) data to test for framing effects
-
-```{r}
-source("./opt/IDP_R/isignrank.test.R")
-
-if (params$task == "defer_speedup") {
-  x = ll_choice_pctgs_for_plotting$defer
-  y = ll_choice_pctgs_for_plotting$speedup
-} else if (params$task == "date_delay") {
-  x = ll_choice_pctgs_for_plotting$delay
-  y = ll_choice_pctgs_for_plotting$date
-}
-
-isignrank.test(x,y, "greater", paired=TRUE)
-```
-
-
 # Visualize data
 
 ## Estimated indifference points from the calibration task
 ```{r figip, fig.cap=cap_ip}
 
-plt_ips_calibration <- plot_ips_calibration(tibb = calibration_ips)
+plt_ips_calibration <- cmdsddfeitc::plot_ips_calibration(tibb = calibration_ips)
 
 # Show plot
 plt_ips_calibration
@@ -466,7 +234,7 @@ cap_ip <- ""
 ```{r figllchoices, fig.cap=cap_ll_choices}
 
 plt_ll_choice_pctgs <- 
-  plot_ll_choice_pctgs(tibb = ll_choice_pctgs_for_plotting,
+  cmdsddfeitc::plot_ll_choice_pctgs(tibb = ll_choice_pctgs_for_plotting,
                        task = params$task)
 # Show plot
 plt_ll_choice_pctgs
@@ -478,8 +246,6 @@ cap_ll_choices <- ""
 ## Response time distributions
 
 ```{r figrtpercentiles, fig.cap=cap_rt_percentiles}
-
-
 
 p <- c(0.1, 0.3, 0.5, 0.7, 0.9)
   
@@ -501,8 +267,8 @@ rt_dist_for_plotting_grpd <-
 
 # Show plot
 plt_rt_percentiles <- 
-  plot_rt_percentiles(tibb = rt_dist_for_plotting_grpd,
-                    task = params$task)
+  cmdsddfeitc::plot_rt_percentiles(tibb = rt_dist_for_plotting_grpd,
+                                   task = params$task)
 
 plt_rt_percentiles
 
