@@ -33,11 +33,8 @@ Bram Zandbelt ([bramzandbelt@gmail.com](mailto:bramzandbelt@gmail.com))
 ## Published in:
 
 TBA
-<!-- TODO: Add PsyArXiv DOI and Bibliography
-```
- 
-```
--->
+
+<!-- TODO: Add PsyArXiv DOI and Bibliography -->
 
 ## Overview
 
@@ -141,149 +138,21 @@ To download the package source as you see it on GitHub, for offline browsing, us
 
 Install `cmdsddfeitc` package from Github:
 
-```{r Install cmdsddfeitc package, eval=FALSE}
+- From R:
+```
 devtools::install_github("bramzandbelt/cmdsddfeitc")
 ```
 
-Once the download is complete, open the file `cmdsddfeitc.Rproj` in RStudio to begin working with the package and compendium files. To reproduce all analyses, run the shell script `analysis/bash/run_all_analyses.sh`. This will run all RMarkdown notebooks in correct order. Note, however, that this will _not_ reproduce the computational modeling analyses performed in the document `03_computational_modeling_analysis.Rmd`), only the result of the optimizations. This is because optimization of all 708 models (59 participants (defer-speedup, N = 28; date-delay, N = 31), 6 parameterizations, 2 architectures) was done on a computer cluster and would take simply too long to run. In order to reproduce the computational modeling analyses, run `03_computational_modeling_analysis.Rmd` as a parameterized report with argument `optimize=TRUE`.
-
-## Licenses
-
-Manuscript: CC-BY-4.0 [http://creativecommons.org/licenses/by/4.0/](http://creativecommons.org/licenses/by/4.0/)
-
-Code: MIT [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT), year: 2019, copyright holder: Bram B. Zandbelt
-
-Data: Data Use Agreement of Donders Institute <!-- TODO: Add URL -->
-
-## Dependencies
-
-Below is the output of `sessionInfo()`, showing version information about R, the OS, and attached or loaded packages:
-
-```{r Gather session info}
-sessionInfo()
+- From the command line:
+```
+git clone https://github.com/bramzandbelt/cmdsddfeitc.git
 ```
 
-Packrat takes care of dependencies.
+Once the download is complete, open the file `cmdsddfeitc.Rproj` in RStudio to begin working with the package and compendium files. To reproduce all analyses, run the shell script `analysis/bash/run_all_analyses.sh`. This will run all RMarkdown notebooks in correct order. Note, however, that this will _not_ reproduce the computational modeling analyses performed in the document `03_computational_modeling_analysis.Rmd`), only the result of the optimizations. This is because optimization of all 708 models (59 participants (defer-speedup, N = 28; date-delay, N = 31), 6 parameterizations, 2 architectures) was done on a computer cluster and would take simply too long to run on a regular computer. In order to reproduce the computational modeling analyses, run `03_computational_modeling_analysis.Rmd` as a parameterized report with argument `optimize=TRUE`.
 
-Model optimization  (notebook) was performed in R 3.5.1. on the Donders Institute computer cluster.
+### Parameterization of analysis notebooks
 
-## Acknowledgment
-
-This research project was funded through European Union’s Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant agreement No. 703141 to Bram B. Zandbelt and through a Vici grant from the Netherlands Organization for Scientific Research (NWO; grant number 453-14-015) to Roshan Cools. I thank Roshan Cools (RC) for financial support and constructive feedback. I thank Ben Marwick for inspiration on [how to create, organize, and describe research compendia](https://github.com/benmarwick/researchcompendium).
-
-## Contributor roles
-
-We specify the contribution of all people involved in the research (contributing non-authors included), according to the [Contributor Role Taxonomy](https://www.casrai.org/credit/).
-
-|                              | BBZ | RC  |
-| ---------------------------- | --- | --- |
-| Conceptualization            | X   | -   |
-| Methodology                  | X   | -   |
-| Software                     | X   | -   |
-| Validation                   | X   | -   |
-| Formal analysis              | X   | -   |
-| Investigation                | X   | -   |
-| Resources                    | X   | -   |
-| Data curation                | X   | -   |
-| Writing - original draft     | X   | -   |
-| Writing - review and editing | X   | -   |
-| Visualization                | X   | -   |
-| Supervision                  | X   | -   |
-| Project administration       | X   | -   |
-| Funding acquisition          | X   | X   |
-
-## Contact
-
-[Bram B. Zandbelt](mailto:bramzandbelt@gmail.com)
-
-```{r Ignore rest of document}
-# Ignore rest of document
-knitr::knit_exit()
-```
-
-
-
-## Getting started
-
-
-### Organization
-
-The following directory tree shows how the research compendium is organized (only the most relevant directories and files are shown):
-
-```
-.
-├── R                                                                       # Project-specific R functions
-├── analysis                                                                # Analysis bash scripts and R Markdown notebook templates
-│   ├── bash                                                                # Bash scripts for batching analyses
-│   │   ├── 01_preprocessing.sh
-│   │   ├── 02_exploratory_data_analysis.sh
-│   │   ├── 03_computational_modeling_analysis_cluster.sh
-│   │   ├── 03_computational_modeling_analysis_cluster_run_script.sh
-│   │   ├── 03_computational_modeling_analysis_local.sh
-│   │   ├── 03_computational_modeling_analysis_local_run_script.sh
-│   │   ├── 04_sanity_check_control_trial_performance_grp.sh
-│   │   ├── 05_eda_grp.sh
-│   │   ├── 06_model_comparison_grp.sh
-│   │   ├── 07_observed_vs_predicted_performance_grp.sh
-│   │   ├── 08_analysis_of_model_parameters_grp.sh
-│   │   ├── 09_sanity_check_effect_framing_on_model_predicted_auc_grp.sh
-│   │   └── run_all_analyses.sh
-│   ├── notebook_templates                                                  # R Markdown notebook templates, containing the main analyses
-│   │   ├── 01_preprocessing_idv.Rmd                                        # - preprocesses raw behavioral data (individual level)
-│   │   ├── 02_eda_idv.Rmd                                                  # - performs EDA of choices and response times (individual level)
-│   │   ├── 03_computational_modeling_analysis_idv.Rmd                      # - models choices and response times, given model and parameterization (individual level)
-│   │   ├── 04_sanity_check_control_trial_performance_grp.Rmd               # - sanity checks on control trial performance (group-level)
-│   │   ├── 05_eda_grp.Rmd                                                  # - performs EDA of choices and response times (group-level)
-│   │   ├── 06_model_comparison_grp.Rmd                                     # - compares models based on Bayesian Information Criterion (group-level)
-│   │   ├── 07_observed_vs_predicted_performance_grp.Rmd                    # - compares observed and predicted choices and response times (group-level)
-│   │   ├── 08_analysis_of_model_parameters_grp.Rmd                         # - analyzes distribution of and relationship between best-fitting parameter values (group-level)
-│   │   └── 09_sanity_check_effect_framing_on_model_predicted_auc_grp.Rmd   # - assesses whether best-fitting model predicts expected framing effects (group-level)
-│   └── run_script.R                                                        # Serves as an intermediate between the bash scripts and R Markdown notebooks
-├── cmdsddfeitc.Rproj                                                       # R project file
-├── data                                                                    # Data
-│   ├── derivatives                                                         # - derivatives from raw data, organized by analysis
-│   ├── pilot                                                               # - data from pilot
-│   └── raw                                                                 # - raw data
-├── documents
-│   ├── information_for_participants
-│   ├── manuscript
-│   ├── miscellaneous
-│   └── presentations
-├── figures                                                                 # Figures produced by running the analyses
-│   ├── 03_computational_modeling_analysis
-│   ├── 04_performance_descriptives_group
-│   ├── 04_sanity_check_control_trial_performance_group
-│   ├── 05_eda_overview_group
-│   ├── 05_model_comparison_group
-│   ├── 06_model_comparison_group
-│   ├── 07_observed_vs_predicted_performance_group
-│   ├── 08_analysis_of_model_parameters
-│   ├── 08_sanity_check_effect_framing_on_model_predicted_auc
-│   └── 09_sanity_check_effect_framing_on_model_predicted_auc
-├── man                                                                     # Roxygen2-generated documentation of functions
-├── metadata                                                                # Project's metadata
-│   └── raw                                                                 # - metadata describing content and context of raw data
-├── opt
-│   └── IDP_R
-├── packrat                                                                 # Packrat's directory, keeps track of dependencies
-└── reports                                                                 # Static HTML reports of analyses
-    ├── 01_preprocessing
-    ├── 02_exploratory_data_analysis
-    └── 03_computational_modeling_analysis
-```
-
-A few pointers about the data structure:
-
-* All data are stored as comma-separated value (csv) files in the directory `data`. Raw data are in `data/raw`, derived data are in `data/derived/`, organized by analysis. Metadata describing the content of the raw data are in the directory `metadata`, metadata describing the content of the derived data can be found in the analysis notebooks. 
-* The directory `analysis/notebook_templates` contains the core analyses as R Markdown notebooks that can be parameterized. R Markdown facilitates easy reproduction of the analyses. Parameterization of the notebooks enables customization of the analysis; for instance, to perform an analysis for a certain participant or task (for more details, see [Usage](#usage) and [Yihui Xie's chapter on Parameterized Reports](https://bookdown.org/yihui/rmarkdown/parameterized-reports.html)). The notebooks can be run interactively in RStudio or they can be 'knitted' to produce static HTML reports (by running the bash scripts). Static HTML reports are written in the `reports` directory.
-
-* Most project-specific code resides in the directory `R`; some notebook-specific code is defined inside the analysis notebooks. Software dependencies are handled by packrat.
-
-### Usage
-
-#### Parameterization of analysis notebooks
-
-The following parameters can be set:
+The analyses can be customized, by specifying a number of parameters. Below is an overview of the parameters that can be set and the notebooks in which they are used.
 
 * `participant_id`: the participant identifier (ranging from 1 to 93);
 * `task`: the task from which to process the data:
@@ -330,21 +199,50 @@ These parameter are used in the following analysis notebooks (indicated by their
 | `rel_tol`              |    |    | X  |    |    |    |    |    |    |
 | `n_pop_per_free_param` |    |    | X  |    |    |    |    |    |    |
 
-#### Reproducing the analyses
+## Licenses
 
-To start from the raw data and reproduce the individual analyses (notebooks 1-3), run ... 
-WARNING: reproducing the computational modeling takes a lot of computational time and is ideally done on a computer cluster.  
+Manuscript: CC-BY-4.0 [http://creativecommons.org/licenses/by/4.0/](http://creativecommons.org/licenses/by/4.0/)
 
-To start from the preprocessed data and reproduce the group analyses (notebooks 4-9), run ...
+Code: MIT [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT), year: 2019, copyright holder: Bram B. Zandbelt
 
-## Colophon
+## Dependencies
 
-### Version
+Below is the output of `sessionInfo()`, showing version information about R, the OS, and attached or loaded packages:
 
-### Contact
+```{r Gather session info}
+sessionInfo()
+```
 
-(mailto:bramzandbelt@gmail.com)[bramzandbelt@gmail.com]
+Packrat takes care of dependencies.
 
-### References
+Model optimization  (notebook) was performed in R 3.5.1. on the Donders Institute computer cluster.
 
+## Acknowledgment
+
+This research project was funded through European Union’s Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant agreement No. 703141 to Bram B. Zandbelt and through a Vici grant from the Netherlands Organization for Scientific Research (NWO; grant number 453-14-015) to Roshan Cools. I thank Roshan Cools (RC) for financial support and constructive feedback. I thank Ben Marwick for inspiration on [how to create, organize, and describe research compendia](https://github.com/benmarwick/researchcompendium).
+
+## Contributor roles
+
+We specify the contribution of all people involved in the research (contributing non-authors included), according to the [Contributor Role Taxonomy](https://www.casrai.org/credit/).
+
+|                              | BBZ | RC  |
+| ---------------------------- | --- | --- |
+| Conceptualization            | X   | -   |
+| Methodology                  | X   | -   |
+| Software                     | X   | -   |
+| Validation                   | X   | -   |
+| Formal analysis              | X   | -   |
+| Investigation                | X   | -   |
+| Resources                    | X   | -   |
+| Data curation                | X   | -   |
+| Writing - original draft     | X   | -   |
+| Writing - review and editing | X   | -   |
+| Visualization                | X   | -   |
+| Supervision                  | X   | -   |
+| Project administration       | X   | -   |
+| Funding acquisition          | X   | X   |
+
+## Contact
+
+[Bram B. Zandbelt](mailto:bramzandbelt@gmail.com)
 

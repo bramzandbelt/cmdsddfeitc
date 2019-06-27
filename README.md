@@ -1,5 +1,5 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-[![Last-changedate](https://img.shields.io/badge/last%20change-2019--06--19-brightgreen.svg)](https://github.com/bramzandbelt/cmdsddfeitc/commits/master) [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.6.0-brightgreen.svg)](https://cran.r-project.org/) [![Task DOI](https://zenodo.org/badge/125838088.svg)](https://zenodo.org/badge/latestdoi/125838088) [![Code licence](https://img.shields.io/github/license/mashape/apistatus.svg)](http://choosealicense.com/licenses/mit/) [![ORCiD](https://img.shields.io/badge/ORCiD-0000--0002--6491--1247-green.svg)](https://orcid.org/0000-0002-6491-1247)
+[![Last-changedate](https://img.shields.io/badge/last%20change-2019--06--27-brightgreen.svg)](https://github.com/bramzandbelt/cmdsddfeitc/commits/master) [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.6.0-brightgreen.svg)](https://cran.r-project.org/) [![Task DOI](https://zenodo.org/badge/125838088.svg)](https://zenodo.org/badge/latestdoi/125838088) [![Code licence](https://img.shields.io/github/license/mashape/apistatus.svg)](http://choosealicense.com/licenses/mit/) [![ORCiD](https://img.shields.io/badge/ORCiD-0000--0002--6491--1247-green.svg)](https://orcid.org/0000-0002-6491-1247)
 
 cmdsddfeitc - Research compendium for the report on the cognitive mechanisms of the defer-speedup and date-delay framing effects in intertemporal choice by Zandbelt
 ====================================================================================================================================================================
@@ -18,12 +18,9 @@ Bram Zandbelt (<bramzandbelt@gmail.com>)
 Published in:
 -------------
 
-TBA <!-- TODO: Add PsyArXiv DOI and Bibliography
-```
- 
-```
--->
+TBA
 
+<!-- TODO: Add PsyArXiv DOI and Bibliography -->
 Overview
 --------
 
@@ -154,11 +151,64 @@ To download the package source as you see it on GitHub, for offline browsing, us
 
 Install `cmdsddfeitc` package from Github:
 
-``` r
-devtools::install_github("bramzandbelt/cmdsddfeitc")
-```
+-   From R:
 
-Once the download is complete, open the file `cmdsddfeitc.Rproj` in RStudio to begin working with the package and compendium files. To reproduce all analyses, run the shell script `analysis/bash/run_all_analyses.sh`. This will run all RMarkdown notebooks in correct order. Note, however, that this will *not* reproduce the computational modeling analyses performed in the document `03_computational_modeling_analysis.Rmd`), only the result of the optimizations. This is because optimization of all 708 models (59 participants (defer-speedup, N = 28; date-delay, N = 31), 6 parameterizations, 2 architectures) was done on a computer cluster and would take simply too long to run. In order to reproduce the computational modeling analyses, run `03_computational_modeling_analysis.Rmd` as a parameterized report with argument `optimize=TRUE`.
+        devtools::install_github("bramzandbelt/cmdsddfeitc")
+
+-   From the command line:
+
+        git clone https://github.com/bramzandbelt/cmdsddfeitc.git
+
+Once the download is complete, open the file `cmdsddfeitc.Rproj` in RStudio to begin working with the package and compendium files. To reproduce all analyses, run the shell script `analysis/bash/run_all_analyses.sh`. This will run all RMarkdown notebooks in correct order. Note, however, that this will *not* reproduce the computational modeling analyses performed in the document `03_computational_modeling_analysis.Rmd`), only the result of the optimizations. This is because optimization of all 708 models (59 participants (defer-speedup, N = 28; date-delay, N = 31), 6 parameterizations, 2 architectures) was done on a computer cluster and would take simply too long to run on a regular computer. In order to reproduce the computational modeling analyses, run `03_computational_modeling_analysis.Rmd` as a parameterized report with argument `optimize=TRUE`.
+
+### Parameterization of analysis notebooks
+
+The analyses can be customized, by specifying a number of parameters. Below is an overview of the parameters that can be set and the notebooks in which they are used.
+
+-   `participant_id`: the participant identifier (ranging from 1 to 93);
+-   `task`: the task from which to process the data:
+-   `defer_speedup`: intertemporal choice task with neutral, defer, and speedup frames;
+-   `date_delay`: intertemporal choice task with delay and date frames;
+-   `visualize`: whether or not to visualize the results (e.g. set to `FALSE` when fitting the model to the data);
+-   `optimize`: whether or not to optimize the parameter values (i.e. set to `FALSE` when only visualizing the data);
+-   `pars_from_file`: whether to use parameter values stored on disk (i.e. set to `TRUE` when visualizing the data)
+-   `algorithm`: specification of the optimization algorithm:
+-   `DEoptim`: differential evolution algorithm with (lower and upper) bound constraints;
+-   `DEoptimR`: differential evolution algorithm with (lower and upper) bound and nonlinear constraints (i.e. ensuring that P(LL choice|SS amount = 0) &gt; 0.75 and P(LL choice| SS amount = LL amount) &lt; 0.25);
+-   `model_name`: name of the model class to fit to the data, can be any of the following:
+-   `DDM`: Drift-diffusion model (fits choices and response times);
+-   `DFT_CRT`: Decision field theory (fits choices and response times);
+-   `DFT_C`: Decision field theory (fits choices only);
+-   `parameterization`: name of the parameterization to fit to the data:
+-   `time_scaling`: lets `\kappa` parameter of the time function vary between frames;
+-   `value_scaling`: lets `\mu` parameter of the value function vary between frames;
+-   `time_and_value_scaling`: lets `\kappa` parameter of the time function and `\mu` parameter of the value function vary between frames;
+-   `time_scaling_t0`: lets `\kappa` parameter of the time function and non-decision time (`t0`) vary between frames;
+-   `value_scaling_t0`: lets `\mu` parameter of the value function and non-decision time (`t0`) vary between frames;
+-   `time_and_value_scaling_t0`: lets `\kappa` parameter of the time function, `\mu` parameter of the value function, and non-decision time (`t0`) vary between frames;
+-   `bound_setting`: controls the lower and upper bounds on the model parameters:
+-   `standard`: uses parameter bounds specified in the preregistration document;
+-   `wide`: uses wider parameter bounds, allowing parameters values to account for 'reverse' framing effects (e.g. more LL choices for delay than date frames);
+-   `max_iter`: maximum iterations performed before optimization algorithm stops;
+-   `rel_tol`: tolerance of the optimization algorithm's stopping criterion;
+-   `n_pop_per_free_param`: number of population members per free parameter (see `NP` in `DEoptimR::JDEoptim` and `DEoptim::DEoptim.control`).
+
+These parameter are used in the following analysis notebooks (indicated by their number only)
+
+| parameter              | 01  | 02  | 03  | 04  | 05  | 06  | 07  | 08  | 09  |
+|:-----------------------|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+| `participant_id`       | X   | X   | X   |     |     |     |     |     |     |
+| `task`                 |     |     |     | X   | X   | X   | X   | X   | X   |
+| `visualize`            | X   | X   | X   |     |     |     |     |     |     |
+| `optimize`             |     |     | X   |     |     |     |     |     |     |
+| `pars_from_file`       |     |     | X   |     |     |     |     |     |     |
+| `algorithm`            |     |     | X   |     |     | X   | X   | X   | X   |
+| `model_name`           |     |     | X   |     |     |     |     |     |     |
+| `parameterization`     |     |     | X   |     |     |     |     |     |     |
+| `bound_setting`        |     |     | X   |     |     |     |     |     |     |
+| `max_iter`             |     |     | X   |     |     |     |     |     |     |
+| `rel_tol`              |     |     | X   |     |     |     |     |     |     |
+| `n_pop_per_free_param` |     |     | X   |     |     |     |     |     |     |
 
 Licenses
 --------
@@ -166,8 +216,6 @@ Licenses
 Manuscript: CC-BY-4.0 <http://creativecommons.org/licenses/by/4.0/>
 
 Code: MIT <http://opensource.org/licenses/MIT>, year: 2019, copyright holder: Bram B. Zandbelt
-
-Data: Data Use Agreement of Donders Institute <!-- TODO: Add URL -->
 
 Dependencies
 ------------
@@ -232,8 +280,3 @@ Contact
 -------
 
 [Bram B. Zandbelt](mailto:bramzandbelt@gmail.com)
-
-``` r
-# Ignore rest of document
-knitr::knit_exit()
-```
