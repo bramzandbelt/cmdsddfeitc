@@ -1,0 +1,28 @@
+Variable name,Variable description,Type,Values or characteristics
+study_id,Study identifier,character,Corresponds to Donders Center for Cognitive Neuroimaging Project Propal Meeting identifier
+task_version_id,Task version identifier,character,"Possible values: defer_speedup, date_delay"
+session_id,Session identifier,character,"Possible values: experiment, pilot, etc."
+experimenter_id,Experimenter identifier,character,Possible values: BBZ (Bram B. Zandbelt)
+response_device,Device with which responses were recorded,character,Possible values: Keyboard
+refresh_rate,Refresh rate of the monitor,double,Possible values: > 30
+rng_seed,Random number generator seed,integer,"Identifier of the RNG seed in Python, used to determine trial order"
+subject_ix,Subject index,integer,Possible values: 1 - 93
+group_ix,Group index,integer,Possible values: 0
+session_ix,Session index,integer,Possible values: 0 - 2
+sess_date,Session data,date,
+sess_time,Session time,time,"Format: hours, minutes, time zone"
+block_id,Block identifier,character,"Posible values: letter (p, practice; i, indifference point procedure; e, experiment) combined with a right padded number corresponding to block index"
+block_ix,Block index,integer,Possible values: 0 - 1
+iter_ix,Iteration index,integer,Number of times the block is repeated (relevant for indifference point procedure only)
+catch_ss_accuracy,Accuracy on catch_ss trials,double,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+catch_ss_accuracy_crit_met,Whether accuracy on catch_ss trials met predefined performance criterion,logical,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+catch_ll_accuracy,Accuracy on catch_ll trials,double,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+catch_ll_accuracy_crit_met,Whether accuracy on catch_ll trials met predefined performance criterion,logical,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+check_instr_accuracy,Accuracy on check_instr trials (only included in defer-speedup task),double,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+check_instr_accuracy_crit_met,Whether accuracy on check_instr trials (only included in defer-speedup task) met predefined performance criterion,logical,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+too_fast_responses,Percentage of trials with responses faster than 1.5 seconds,double,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+too_fast_responses_crit_met,Whether percentage of too fast responses met predefined performance criterion,logical,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+monotonicity,"The maximum difference between indifference points of consecutive delays; an indifference point cannot be higher than the previous indifference point by 20% of the LL amount (criterion 1 from Johnson & Bickel, 2008)",,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+monotonicity_crit_met,"Whether criterion 1 from Johnson & Bickel, 2008 is met",,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+discounting,"Fraction between indifference point for longest delay and monetary amount of larger-later-option; used to evaluate whether indifference points decrease with delay at all (criterion 2 from Johnson & Bickel, 2008)",,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"
+discounting_crit_met,"Whether criterion 2 from Johnson & Bickel, 2008 is met",,"Only recorded for indifferent point procedure, for end-of-block feedback purposes"

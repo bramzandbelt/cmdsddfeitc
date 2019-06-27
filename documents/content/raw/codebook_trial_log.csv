@@ -1,0 +1,40 @@
+Variable name,Variable description,Type,Values or characteristics
+study_id,Study identifier,character,Corresponds to Donders Center for Cognitive Neuroimaging Project Propal Meeting identifier
+task_version_id,Task version identifier,character,"Possible values: defer_speedup, date_delay"
+session_id,Session identifier,character,"Possible values: experiment, pilot, etc."
+experimenter_id,Experimenter identifier,character,Possible values: BBZ (Bram B. Zandbelt)
+response_device,Device with which responses were recorded,character,Possible values: Keyboard
+refresh_rate,Refresh rate of the monitor,double,Possible values: > 30
+rng_seed,Random number generator seed,integer,"Identifier of the RNG seed in Python, used to determine trial order"
+subject_ix,Subject index,integer,Possible values: 1 - 93
+group_ix,Group index,integer,Possible values: 0
+session_ix,Session index,integer,Possible values: 0 - 2
+sess_date,Session data,date,
+sess_time,Session time,time,"Format: hours, minutes, time zone"
+block_id,Block identifier,character,"Posible values: letter (p, practice; i, indifference point procedure; e, experiment) combined with a right padded number corresponding to block index"
+block_ix,Block index,integer,Possible values: 0 - 1
+iter_ix,Iteration index,integer,Number of times the block is repeated (relevant for indifference point procedure only)
+trial_ix,Trial index,integer,
+framing,Framing ,character,"Possible values: neutral, defer, speedup (defer-speedup) or neutral, date, delay (date-delay)"
+ll_side,Side on which the LL option is presented,character,"Possible values: left, right"
+t_session,Time elapsed since session onset (i.e. when program launched),time,"Format: hours, minutes, seconds"
+t_block,Time elapsed since block onset,,"Format: minutes, seconds"
+trial_ons,Trial onset,double,"Time since session onset, in seconds"
+trial_dur,Trial duration,double,In seconds; NA values indicate that a response ended the trial
+waited_for_trigger,Whether or not the trial was self-started,logical,
+trial_type,Type of trial,character,"Possible values: standard, catch_ll, catch_ss, instr_check"
+m_s_cat,Category of small-soon amount option,characer,"Possible values: below_ip, at_ip, above_ip"
+m_s,Monetary amount of small-soon option,double,Possible values: 0 - 43.52
+m_l,Monetary amount of large-later option,double,Possible values: 43.52
+m_unit,Unit of monetary amount option,character,Possible values: euro symbol
+t_s,"Time of reward delivery of small-soon option, in number of days",integer,Possible values: 0
+t_l,"Time of reward delivery of large-later option, in number of days",integer,"Possible values: 2, 4, 8, 16, 32, 64, 128"
+t_unit,Unit of time of reward delivery,character,Possible values: days
+key_count_f,"Key count of f key, corresponding to the left option",integer,Possible values: > 0
+key_count_j,"Key count of f key, corresponding to the right option",integer,Possible values: > 0
+key_count_return,"Key count of enter key, corresponding to the correct response on instruction manipulation check trials",integer,Possible values: > 0
+choice,Option chosen,character,"Possible values: ss, ll"
+rt,"Response time, in seconds",double,Possible values: 0 < rt < 10
+trial_correct,Whether or not the response was correct or in line with expectations (relevant for catch and instruction manipulation check trials only),logical,
+too_fast,Whether the response time was shorter than the minimum response time of 1.5 seconds,logical,
+trial_feedback,"Feedback presented at the end of the trial, if any",character,
