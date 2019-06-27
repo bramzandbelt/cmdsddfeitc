@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 
 [![Last-changedate](https://img.shields.io/badge/last%20change-`r gsub('-', '--', Sys.Date())`-brightgreen.svg)](https://github.com/bramzandbelt/cmdsddfeitc/commits/master) 
 [![minimal R version](https://img.shields.io/badge/R%3E%3D-`r as.character(getRversion())`-brightgreen.svg)](https://cran.r-project.org/)
-[![Task DOI](https://zenodo.org/badge/125838088.svg)](https://zenodo.org/badge/latestdoi/125838088)
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.3258148.svg)](https://zenodo.org/badge/doi/10.5281/zenodo.3258148.svg)
 [![Code licence](https://img.shields.io/github/license/mashape/apistatus.svg)](http://choosealicense.com/licenses/mit/) 
 [![ORCiD](https://img.shields.io/badge/ORCiD-0000--0002--6491--1247-green.svg)](https://orcid.org/0000-0002-6491-1247)
 
@@ -54,17 +54,15 @@ This research compendium contains all data, code, and text associated with the a
 │   └── raw
 ├── documents
 │   ├── content
-│   ├── context
-│   └── manuscript
+│   └── context
 ├── figures
-│   ├── 01_preprocessing
-│   ├── 02_exploratory_data_analysis
 │   ├── 03_computational_modeling_analysis
-│   ├── 04_sanity_check_control_trial_performance_grp
+│   ├── 04_sanity_check_control_trial_performance
 │   ├── 05_eda_grp
 │   ├── 06_model_comparison_grp
 │   ├── 07_observed_vs_predicted_performance_grp
-│   └── 08_analysis_of_model_parameters_grp
+│   ├── 08_analysis_of_model_parameters
+│   └── 09_sanity_check_effect_framing_on_model_predicted_auc
 ├── man
 ├── metadata
 │   └── raw
@@ -74,16 +72,16 @@ This research compendium contains all data, code, and text associated with the a
 │   ├── lib-ext
 │   └── src
 └── reports
-    ├── 01_preprocessing
-    ├── 02_exploratory_data_analysis
-    ├── 03_computational_modeling_analysis
-    ├── 04_sanity_check_control_trial_performance_grp
-    ├── 05_eda_grp
-    ├── 06_model_comparison_grp
-    ├── 07_observed_vs_predicted_performance_grp
-    └── 08_analysis_of_model_parameters_grp
-```
-
+│   ├── 01_preprocessing_idv
+│   ├── 02_eda_idv
+│   ├── 03_computational_modeling_analysis_idv
+│   ├── 04_sanity_check_control_trial_performance_grp
+│   ├── 05_eda_grp
+│   ├── 06_model_comparison_grp
+│   ├── 07_observed_vs_predicted_performance_grp
+│   ├── 08_analysis_of_model_parameters_grp
+│   └── 09_sanity_check_effect_framing_on_model_predicted_auc_grp
+``
 
 The `R/` directory contains:
 

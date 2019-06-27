@@ -1,5 +1,5 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-[![Last-changedate](https://img.shields.io/badge/last%20change-2019--06--27-brightgreen.svg)](https://github.com/bramzandbelt/cmdsddfeitc/commits/master) [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.6.0-brightgreen.svg)](https://cran.r-project.org/) [![Task DOI](https://zenodo.org/badge/125838088.svg)](https://zenodo.org/badge/latestdoi/125838088) [![Code licence](https://img.shields.io/github/license/mashape/apistatus.svg)](http://choosealicense.com/licenses/mit/) [![ORCiD](https://img.shields.io/badge/ORCiD-0000--0002--6491--1247-green.svg)](https://orcid.org/0000-0002-6491-1247)
+[![Last-changedate](https://img.shields.io/badge/last%20change-2019--06--27-brightgreen.svg)](https://github.com/bramzandbelt/cmdsddfeitc/commits/master) [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.6.0-brightgreen.svg)](https://cran.r-project.org/) [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.3258148.svg)](https://zenodo.org/badge/doi/10.5281/zenodo.3258148.svg) [![Code licence](https://img.shields.io/github/license/mashape/apistatus.svg)](http://choosealicense.com/licenses/mit/) [![ORCiD](https://img.shields.io/badge/ORCiD-0000--0002--6491--1247-green.svg)](https://orcid.org/0000-0002-6491-1247)
 
 cmdsddfeitc - Research compendium for the report on the cognitive mechanisms of the defer-speedup and date-delay framing effects in intertemporal choice by Zandbelt
 ====================================================================================================================================================================
@@ -39,17 +39,15 @@ This research compendium contains all data, code, and text associated with the a
     │   └── raw
     ├── documents
     │   ├── content
-    │   ├── context
-    │   └── manuscript
+    │   └── context
     ├── figures
-    │   ├── 01_preprocessing
-    │   ├── 02_exploratory_data_analysis
     │   ├── 03_computational_modeling_analysis
-    │   ├── 04_sanity_check_control_trial_performance_grp
+    │   ├── 04_sanity_check_control_trial_performance
     │   ├── 05_eda_grp
     │   ├── 06_model_comparison_grp
     │   ├── 07_observed_vs_predicted_performance_grp
-    │   └── 08_analysis_of_model_parameters_grp
+    │   ├── 08_analysis_of_model_parameters
+    │   └── 09_sanity_check_effect_framing_on_model_predicted_auc
     ├── man
     ├── metadata
     │   └── raw
@@ -59,106 +57,78 @@ This research compendium contains all data, code, and text associated with the a
     │   ├── lib-ext
     │   └── src
     └── reports
-        ├── 01_preprocessing
-        ├── 02_exploratory_data_analysis
-        ├── 03_computational_modeling_analysis
-        ├── 04_sanity_check_control_trial_performance_grp
-        ├── 05_eda_grp
-        ├── 06_model_comparison_grp
-        ├── 07_observed_vs_predicted_performance_grp
-        └── 08_analysis_of_model_parameters_grp
+    │   ├── 01_preprocessing_idv
+    │   ├── 02_eda_idv
+    │   ├── 03_computational_modeling_analysis_idv
+    │   ├── 04_sanity_check_control_trial_performance_grp
+    │   ├── 05_eda_grp
+    │   ├── 06_model_comparison_grp
+    │   ├── 07_observed_vs_predicted_performance_grp
+    │   ├── 08_analysis_of_model_parameters_grp
+    │   └── 09_sanity_check_effect_framing_on_model_predicted_auc_grp
+    ``
 
-The `R/` directory contains:
+    The `R/` directory contains:
 
--   R code specific to the present project; functions are organized into files (e.g. functions for plotting are in `plot_functions.R`)
+    - R code specific to the present project; functions are organized into files (e.g. functions for plotting are in `plot_functions.R`)
 
-The `analysis/` directory contains:
+    The `analysis/` directory contains:
 
--   R Markdown notebooks implementing the analyses (`notebooks/` directory), numbered in the order in which they should be run;
--   shell scripts running the R Markdown notebooks with appropriate parameters, if any (`bash/` directory).
+    - R Markdown notebooks implementing the analyses (`notebooks/` directory), numbered in the order in which they should be run;
+    - shell scripts running the R Markdown notebooks with appropriate parameters, if any (`bash/` directory).
 
-The `data/` directory contains:
+    The `data/` directory contains:
 
--   the raw performance data (`raw/` directory);
--   the data derived from the raw data (`derivatives/` directory), organized by notebook name.
+    - the raw performance data (`raw/` directory);
+    - the data derived from the raw data (`derivatives/` directory), organized by notebook name.
 
-The `documents/` directory contains:
+    The `documents/` directory contains:
 
--   documents describing the content of the experimental data (`content/` directory), such as codebooks;
--   documents describing the context of the data (`context/` directory), such as ethics documents, data management plan, and preregistration;
--   documents related to the report of this research project (`manuscript/` directory).
+    - documents describing the content of the experimental data (`content/` directory), such as codebooks;
+    - documents describing the context of the data (`context/` directory), such as ethics documents, data management plan, and preregistration;
+    - documents related to the report of this research project (`manuscript/` directory).
 
-The `figures/` directory contains:
+    The `figures/` directory contains:
 
--   visualizations of descriptive and inferential statistics, organized by notebook name.
+    - visualizations of descriptive and inferential statistics, organized by notebook name.
 
-The `man/` directory contains:
+    The `man/` directory contains:
 
--   documentation of objects inside the package, generated by `roxygen2`.
+    - documentation of objects inside the package, generated by `roxygen2`.
 
-The `packrat/` directory contains:
+    The `packrat/` directory contains:
 
--   R packages the research compendium depends on; for more info see <https://rstudio.github.io/packrat/>.
+    - R packages the research compendium depends on; for more info see [https://rstudio.github.io/packrat/](https://rstudio.github.io/packrat/).
 
-The `reports/` directory contains:
+    The `reports/` directory contains:
 
--   static HTML versions of the knitted R Markdown notebooks, organized by notebook name.
+    - static HTML versions of the knitted R Markdown notebooks, organized by notebook name.
 
-Finally, this research compendium is associated with a number of online objects, including:
+    Finally, this research compendium is associated with a number of online objects, including:
 
-<table>
-<colgroup>
-<col width="9%" />
-<col width="45%" />
-<col width="45%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>object</th>
-<th>archived version</th>
-<th>development version</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>preregistration</td>
-<td><a href="https://osf.io/rzqh9/" class="uri">https://osf.io/rzqh9/</a></td>
-<td>NA</td>
-</tr>
-<tr class="even">
-<td>data management plan</td>
-<td><a href="https://doi.org/10.6084/m9.figshare.4720978" class="uri">https://doi.org/10.6084/m9.figshare.4720978</a></td>
-<td>NA</td>
-</tr>
-<tr class="odd">
-<td>stimulus presentation code</td>
-<td><a href="https://doi.org/10.5281/zenodo.3243777" class="uri">https://doi.org/10.5281/zenodo.3243777</a></td>
-<td><a href="github.com/bramzandbelt/itch_time_framing_task" class="uri">github.com/bramzandbelt/itch_time_framing_task</a></td>
-</tr>
-<tr class="even">
-<td>cognitive modeling code</td>
-<td><a href="https://doi.org/10.5281/zenodo.3243806" class="uri">https://doi.org/10.5281/zenodo.3243806</a></td>
-<td><a href="https://github.com/bramzandbelt/itchmodel" class="uri">https://github.com/bramzandbelt/itchmodel</a></td>
-</tr>
-</tbody>
-</table>
+    | object | archived version                 | development version              |
+    | ------ | -------------------------------- | -------------------------------- |
+    | preregistration | [https://osf.io/rzqh9/](https://osf.io/rzqh9/) | NA |
+    | data management plan | [https://doi.org/10.6084/m9.figshare.4720978](https://doi.org/10.6084/m9.figshare.4720978) | NA |
+    | stimulus presentation code | [https://doi.org/10.5281/zenodo.3243777](https://doi.org/10.5281/zenodo.3243777) | [github.com/bramzandbelt/itch_time_framing_task](github.com/bramzandbelt/itch_time_framing_task) |
+    | cognitive modeling code | [https://doi.org/10.5281/zenodo.3243806](https://doi.org/10.5281/zenodo.3243806) | [https://github.com/bramzandbelt/itchmodel](https://github.com/bramzandbelt/itchmodel) |
 
-How to use
-----------
+    ## How to use
 
-This repository is organized as an R package, called `cmdsddfeitc`. The R package structure was used to help manage dependencies, to take advantage of continuous integration for automated code testing and documentation, and to be able to follow a standard format for file organization. The package `cmdsddfeitc` depends on other R packages and non-R programs, which are listed below under [Dependencies](#Dependencies).
+    This repository is organized as an R package, called `cmdsddfeitc`. The R package structure was used to help manage dependencies, to take advantage of continuous integration for automated code testing and documentation, and to be able to follow a standard format for file organization. The package `cmdsddfeitc` depends on other R packages and non-R programs, which are listed below under [Dependencies](#Dependencies).
 
-To download the package source as you see it on GitHub, for offline browsing, use this line at the shell prompt (assuming you have Git installed on your computer):
+    To download the package source as you see it on GitHub, for offline browsing, use this line at the shell prompt (assuming you have Git installed on your computer):
 
-Install `cmdsddfeitc` package from Github:
+    Install `cmdsddfeitc` package from Github:
 
--   From R:
+    - From R:
 
-        devtools::install_github("bramzandbelt/cmdsddfeitc")
+devtools::install\_github("bramzandbelt/cmdsddfeitc")
 
--   From the command line:
 
-        git clone https://github.com/bramzandbelt/cmdsddfeitc.git
+    - From the command line:
+
+git clone <https://github.com/bramzandbelt/cmdsddfeitc.git> \`\`\`
 
 Once the download is complete, open the file `cmdsddfeitc.Rproj` in RStudio to begin working with the package and compendium files. To reproduce all analyses, run the shell script `analysis/bash/run_all_analyses.sh`. This will run all RMarkdown notebooks in correct order. Note, however, that this will *not* reproduce the computational modeling analyses performed in the document `03_computational_modeling_analysis.Rmd`), only the result of the optimizations. This is because optimization of all 708 models (59 participants (defer-speedup, N = 28; date-delay, N = 31), 6 parameterizations, 2 architectures) was done on a computer cluster and would take simply too long to run on a regular computer. In order to reproduce the computational modeling analyses, run `03_computational_modeling_analysis.Rmd` as a parameterized report with argument `optimize=TRUE`.
 
