@@ -7,7 +7,8 @@ cmdsddfeitc - Research compendium for the report on the cognitive mechanisms of 
 Compendium DOI
 --------------
 
-<!-- TODO: Add Zenodo DOI -->
+[DOI: 10.5281/zenodo.3258148](https://doi.org/10.5281/zenodo.3258148)
+
 The files at the URL above will generate the results as found in the preprint. The files hosted at <https://github.com/bramzandbelt/cmdsddfeitc/> are the development versions and may have changed since the preprint was published.
 
 Author of this repository
