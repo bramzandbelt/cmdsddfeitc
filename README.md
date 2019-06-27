@@ -24,7 +24,7 @@ TBA
 Overview
 --------
 
-The packagae `cmdsddfeitc` is a research compendium of the research project *Cognitive Mechanisms of the Defer-Speedup and Date-Delay Framing Effects in Intertemporal Choice* by Bram Zandbelt. This project was conducted at the Donders Institute, Radboud University / Radboucumc, Nijmegen, the Netherlands, and registered at the Donders Centre for Cognitive Neuroimaging under project number (DCCN PI: Roshan Cools).
+The packagae `cmdsddfeitc` is a research compendium of the research project *Cognitive Mechanisms of the Defer-Speedup and Date-Delay Framing Effects in Intertemporal Choice* by Bram Zandbelt. This project was conducted at the Donders Institute, Radboud University / Radboucumc, Nijmegen, the Netherlands, and registered at the Donders Centre for Cognitive Neuroimaging under project number 3017051.01 (DCCN PI: Roshan Cools).
 
 This research compendium contains all data, code, and text associated with the above-mentioned publication and is organized as follows:
 
